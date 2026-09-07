@@ -421,7 +421,7 @@ function load(){
 
 
 /* RENDER TEAMS */
-
+function load(){$("l").value=cfg.capture_region?.left??105;$("t").value=cfg.capture_region?.top??220;$("w").value=cfg.capture_region?.width??420;$("h").value=cfg.capture_region?.height??45;$("url").textContent=location.origin+"/overlay";render()}
 function render(){
 
   const d=$("teams");
