@@ -14,7 +14,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 .feedWrap{position:absolute;left:48px;top:220px;width:900px;display:block}.titleLine{display:flex;align-items:end;height:38px;margin-bottom:8px}.titleAccent{width:6px;height:28px;background:var(--gold);box-shadow:0 0 10px var(--gold);margin-right:10px}.titleLine h2{margin:0;font-size:21px;letter-spacing:3px}.titleLine .sub{margin-left:auto;color:#6683a8;font-size:9px;letter-spacing:1.5px}.killrow{height:70px;display:grid;grid-template-columns:65px 1fr 58px 1fr 65px;align-items:center;padding:0 8px;background:linear-gradient(90deg,rgba(7,20,38,.96),rgba(5,13,27,.9));border:1px solid rgba(25,157,255,.35);clip-path:polygon(0 0,98% 0,100% 50%,98% 100%,0 100%)}.logoBox{width:48px;height:48px;margin:auto;display:grid;place-items:center}.logoBox img{width:100%;height:100%;object-fit:contain}.kname{font-size:14px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pname{font-size:10px;color:#7895b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.victim{text-align:right}.victim .pname{color:var(--gold)}.weaponBox{text-align:center}.weaponIcon{font-size:19px}.weaponLabel{font-size:7px;color:#6281a7;letter-spacing:1px;margin-top:2px}.feedHidden{display:none!important}
 .points{position:absolute;right:14px;top:210px;width:395px;height:740px;padding:12px 11px 10px;background:linear-gradient(135deg,rgba(4,14,29,.98),rgba(7,21,40,.96));border:1px solid rgba(24,161,255,.58);box-shadow:0 0 20px rgba(0,130,255,.13),0 10px 30px rgba(0,0,0,.35);overflow:hidden}.points:before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:#159dff;box-shadow:0 0 9px #159dff}.points:after{content:"";position:absolute;right:8px;top:8px;width:35px;height:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,#159dff 6px 10px,transparent 10px 15px)}.pointsHead{height:47px;display:flex;align-items:center;border-bottom:1px solid rgba(37,161,239,.35)}.pointsHead .title{font-size:19px;font-weight:1000;letter-spacing:1px}.pointsHead .subtitle{font-size:9px;color:#718caf;letter-spacing:1.3px;font-weight:900;margin-top:3px}.liveTag{margin-left:auto;color:#ff5261;font-size:9px;font-weight:1000;letter-spacing:1.5px}.liveTag i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff2638;box-shadow:0 0 8px #ff2638;margin-right:4px}.columns,.prow{display:grid;grid-template-columns:30px 1fr 54px 65px 55px;align-items:center}.columns{height:31px;color:#6c88aa;font-size:8px;font-weight:1000;letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,.08)}.prow{height:39px;margin:1px 0;padding:0 4px;background:linear-gradient(90deg,rgba(7,21,40,.96),rgba(4,13,27,.92));border:1px solid rgba(48,111,164,.18)}.prow.top{height:40px;border-color:rgba(255,213,43,.65);background:linear-gradient(90deg,rgba(74,58,9,.42),rgba(6,15,30,.95))}.rank{font-size:10px;font-weight:1000;text-align:center;color:#a9bdd6}.prow.top .rank{color:var(--gold)}.team{display:flex;align-items:center;gap:7px;min-width:0}.team img{width:27px;height:27px;object-fit:contain}.team b{font-size:9px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.num,.pts{font-size:10px;font-weight:1000;text-align:center}.pts{font-size:12px;color:var(--gold)}.tableFoot{display:none}.empty{height:100px;display:grid;place-items:center;color:#526d90;letter-spacing:2px;font-weight:900;border:1px dashed rgba(50,140,220,.25)}
 .elimAlert{position:absolute;left:50%;top:104px;transform:translate(-50%,-12px) scale(.96);width:500px;height:62px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:20;opacity:0;pointer-events:none;background:linear-gradient(90deg,rgba(42,5,12,.98),rgba(110,8,24,.96),rgba(27,5,11,.98));border:1px solid rgba(255,62,88,.85);clip-path:polygon(4% 0,97% 0,100% 50%,97% 100%,4% 100%,0 50%);box-shadow:0 0 22px rgba(255,35,65,.4);transition:.2s}.elimAlert.show{opacity:1;transform:translate(-50%,0) scale(1)}.elimAlert .eaLogo{width:42px;height:42px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.55);background:#07090e}.elimAlert .eaLogo img{width:100%;height:100%;object-fit:contain}.elimAlert .eaTeam{font-size:17px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}.elimAlert .eaText{margin-top:4px;font-size:9px;font-weight:1000;letter-spacing:3px;color:#ff6378}.elimAlert .eaLive{margin-left:auto;font-size:8px;font-weight:1000;letter-spacing:1.5px;color:#ff9aaa}
-#status{position:absolute;left:48px;bottom:34px;font-size:10px;color:#5d789b;letter-spacing:1.5px;font-weight:900}#loading{display:none!important}
+#status{display:none!important}#loading{display:none!important}
 </style></head><body><div id="stage">
 <div id="elimAlert" class="elimAlert"><div class="eaLogo" id="elimLogo"></div><div><div class="eaTeam" id="elimTeam">TEAM</div><div class="eaText">ELIMINATED</div></div><div class="eaLive">MATCH ELIMINATION</div></div>
 <header class="header"><div class="liveBox"><div class="livePill"><i class="liveDot"></i>LIVE</div><div class="hdrMeta"><div class="hdrMatch" id="matchTitle">MATCH 1</div><div class="hdrGroup" id="groupTitle">GROUP A × B</div></div></div><div class="hdrRight"><div class="small" id="dayTop">DAY 1</div><div class="value" id="mapTop">ERANGEL</div></div></header>
@@ -26,6 +26,7 @@ const CFG=window.KF_CONFIG||{};
 const SUPABASE_URL=CFG.SUPABASE_URL||"https://nuywberanlfvngjnjcpx.supabase.co";
 const SUPABASE_KEY=CFG.SUPABASE_PUBLISHABLE_KEY||"";
 const ROOM=localStorage.getItem("kf_room")||"ADITYA8029";
+const POLL_MS=500;
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -105,6 +106,7 @@ function weaponIcon(w){
 
 /* ---------- LIVE EVENT ENGINE ---------- */
 function normalizeEvents(raw){
+  if(typeof raw === "string"){ try{ raw=JSON.parse(raw); }catch{} }
   if(Array.isArray(raw)) return raw;
   if(raw&&Array.isArray(raw.events)) return raw.events;
   if(raw&&Array.isArray(raw.data)) return raw.data;
@@ -151,9 +153,10 @@ function getEliminatedTeams(c,events){
     victims.get(key).add(v.toLowerCase());
   }
   return teams.filter(t=>{
+    const key=teamName(t);
     const configured=(t?.eliminated===true||String(t?.status||"").toUpperCase()==="ELIMINATED"||configuredAlive(t)===0);
-    const set=victims.get(teamName(t));
-    return configured || (set&&set.size>=4);
+    const set=victims.get(key);
+    return configured || !!(set && set.size>=4);
   });
 }
 
@@ -220,11 +223,20 @@ function renderTable(c,events){
 let knownEliminated=new Set();
 let elimTimer=null;
 let currentMatchKey="";
+function eliminationSignature(t,events,c){
+  const team=teamName(t).toLowerCase();
+  const victims=new Set();
+  for(const e of sortedEvents(events)){
+    const v=String(eventVictim(e)||"").trim().toLowerCase();
+    if(v && findTeam(c,v) && teamName(findTeam(c,v)).toLowerCase()===team) victims.add(v);
+  }
+  return team+"|"+Array.from(victims).sort().join(",")+"|"+(t?.eliminated===true?1:0)+"|"+(String(t?.status||"").toUpperCase()==="ELIMINATED"?1:0)+"|"+(configuredAlive(t)===0?1:0);
+}
 function showElimination(t){
   const alert=$("elimAlert"),logo=$("elimLogo"),name=$("elimTeam");
   if(!alert||!name)return;
   const url=teamLogo(t);
-  logo.innerHTML=url?`<img src="${esc(url)}">`:"";
+  logo.innerHTML=url?`<img src="${esc(url)}">`:``;
   name.textContent=teamName(t);
   alert.classList.remove("show");
   void alert.offsetWidth;
@@ -234,9 +246,13 @@ function showElimination(t){
 }
 function checkEliminations(c,events,b){
   const matchKey=String(b?.match||"MATCH 1");
-  if(matchKey!==currentMatchKey){currentMatchKey=matchKey;knownEliminated=new Set();}
-  for(const t of getEliminatedTeams(c,events)){
-    const key=teamName(t);
+  if(matchKey!==currentMatchKey){
+    currentMatchKey=matchKey;
+    knownEliminated=new Set();
+  }
+  const eliminated=getEliminatedTeams(c,events);
+  for(const t of eliminated){
+    const key=eliminationSignature(t,events,c);
     if(!knownEliminated.has(key)){
       knownEliminated.add(key);
       showElimination(t);
@@ -247,11 +263,14 @@ function checkEliminations(c,events,b){
 /* ---------- LIVE LOOP ---------- */
 let running=false;
 let lastSig="";
+let firstLoad=true;
 async function tick(){
   if(running)return;
   running=true;
   try{
-    const [c,eventsRaw]=await Promise.all([getState(),getEvents()]);
+    let c=await getState();
+    if(typeof c === "string"){ try{ c=JSON.parse(c); }catch{} }
+    const eventsRaw=await getEvents();
     const events=normalizeEvents(eventsRaw);
     const b=broadcast(c);
     $("matchTitle").textContent=b.match;
@@ -262,19 +281,19 @@ async function tick(){
     checkEliminations(c,events,b);
     renderFeed(c,events);
     renderTable(c,events);
-    const sig=sortedEvents(events).slice(0,4).map(eventKey).join("|");
+    const sig=sortedEvents(events).slice(0,8).map(eventKey).join("|")+"|"+JSON.stringify(b);
     if(sig!==lastSig){lastSig=sig;document.title=`LIVE • ${b.match} • Senpai Esports`;}
     $("status").textContent="LIVE SYNC";
     $("loading").style.display="none";
+    firstLoad=false;
   }catch(err){
     console.error("LIVE OVERLAY ERROR:",err);
     $("status").textContent="LIVE DATA CONNECTION ERROR • RETRYING…";
-    $("loading").textContent="RECONNECTING…";
   }finally{running=false;}
 }
 tick();
-setInterval(tick,1000);
+setInterval(tick,POLL_MS);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tick(); });
 window.addEventListener("focus",()=>tick());
-
+window.addEventListener("storage",()=>tick());
 </script></body></html>
