@@ -1,13 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920,height=1080">
 <title>BGMI Esports Overlay</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
-<script src="/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -17,8 +16,8 @@ html,body{
   width:100%;
   height:100%;
   overflow:hidden;
-  background:transparent!important;
-  font-family:Inter,Segoe UI,Arial,sans-serif;
+  background:transparent;
+  font-family:Arial,Helvetica,sans-serif;
   color:#fff
 }
 
@@ -44,36 +43,41 @@ html,body{
   }
 }
 
-/* ================= TOP ================= */
+:root{
+  --blue:#087dff;
+  --cyan:#19cfff;
+  --gold:#ffd52b;
+  --panel:rgba(5,12,25,.95);
+  --muted:#7894b8;
+}
+
+/* ================= TOP BAR ================= */
 
 .topbar{
   position:absolute;
   left:50%;
-  top:22px;
+  top:24px;
   transform:translateX(-50%);
 
-  min-width:460px;
-  height:48px;
+  width:520px;
+  height:54px;
 
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:13px;
+  gap:15px;
 
-  padding:0 25px;
+  padding:0 20px;
 
   background:
     linear-gradient(
       90deg,
-      rgba(3,10,22,.96),
-      rgba(8,22,42,.96),
-      rgba(3,10,22,.96)
+      rgba(5,12,26,.98),
+      rgba(7,18,38,.96),
+      rgba(5,12,26,.98)
     );
 
-  border:1px solid rgba(0,160,255,.55);
-
-  box-shadow:
-    0 0 18px rgba(0,130,255,.20);
+  border:1px solid rgba(25,170,255,.45);
 
   clip-path:polygon(
     4% 0,
@@ -84,232 +88,209 @@ html,body{
     0 50%
   );
 
-  z-index:30
+  box-shadow:
+    0 0 18px rgba(0,150,255,.22);
 }
 
 .live{
   display:flex;
   align-items:center;
-  gap:7px;
+  gap:8px;
 
-  font-size:14px;
+  background:#c91525;
+
+  padding:7px 12px;
+
+  font-size:15px;
   font-weight:1000;
-  letter-spacing:1.5px
+  letter-spacing:2px;
 }
 
 .live i{
-  width:7px;
-  height:7px;
+  width:8px;
+  height:8px;
+  background:#fff;
   border-radius:50%;
-  background:#ff2448;
-  box-shadow:0 0 9px #ff2448;
-  animation:pulse 1s infinite
+  box-shadow:0 0 9px #fff;
 }
 
-@keyframes pulse{
-  50%{opacity:.35}
+.matchblock{
+  line-height:1;
+  text-align:center;
+  white-space:nowrap;
 }
 
-.match{
-  font-size:16px;
+.matchtitle{
+  font-size:20px;
   font-weight:1000;
-  letter-spacing:1px
+  display:inline;
 }
 
-.gold{
-  color:#ffd800
-}
-
-.meta{
-  color:#8eaccd;
-  font-size:10px;
+.group{
+  font-size:14px;
+  color:var(--gold);
   font-weight:900;
-  letter-spacing:1px
+  letter-spacing:1.5px;
+  margin-left:5px;
 }
 
-/* ================= PANELS ================= */
-
-.panel{
-  position:absolute;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(4,13,27,.93),
-      rgba(3,12,24,.88)
-    );
-
-  border:1px solid rgba(0,150,255,.48);
-
-  box-shadow:
-    0 0 18px rgba(0,100,255,.13);
-
-  overflow:hidden
+.day{
+  font-size:10px;
+  color:#8fa9c8;
+  font-weight:900;
+  margin-left:8px;
+  letter-spacing:1px;
 }
 
-.panel:before{
-  content:"";
-  position:absolute;
-  left:0;
-  right:0;
-  top:0;
-  height:2px;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      #00aaff,
-      #72d9ff,
-      #00aaff,
-      transparent
-    );
-
-  box-shadow:0 0 9px #00aaff
-}
-
-.panelTitle{
-  height:36px;
-
-  display:flex;
-  align-items:center;
-
-  padding:0 10px;
-
-  background:rgba(4,23,44,.72);
-
-  border-bottom:1px solid rgba(0,150,255,.3);
-
-  font-size:11px;
-  font-weight:1000;
-  letter-spacing:1.3px
-}
-
-.titleLine{
-  width:3px;
-  height:16px;
-
-  margin-right:7px;
-
-  background:#00b7ff;
-  box-shadow:0 0 8px #00b7ff
+.map{
+  font-size:10px;
+  color:#8fa9c8;
+  font-weight:900;
+  margin-left:7px;
+  letter-spacing:1px;
 }
 
 /* ================= KILL FEED ================= */
 
 .killPanel{
-  left:18px;
+  position:absolute;
+  left:22px;
   top:82px;
-  width:360px;
-  height:auto;
-  min-height:92px
+
+  width:370px;
+
+  background:rgba(5,12,25,.95);
+
+  border:1px solid rgba(25,170,255,.55);
+
+  box-shadow:
+    0 0 18px rgba(0,150,255,.22);
 }
 
-#feed{
-  padding:6px
+.panelHeader{
+  height:38px;
+
+  display:flex;
+  align-items:center;
+
+  padding:0 12px;
+
+  border-bottom:1px solid rgba(25,170,255,.35);
+
+  position:relative;
+}
+
+.panelHeader:before{
+  content:"";
+  width:3px;
+  height:17px;
+
+  background:#19cfff;
+
+  margin-right:8px;
+
+  box-shadow:0 0 8px #19cfff;
+}
+
+.panelTitle{
+  font-size:13px;
+  font-weight:1000;
+  letter-spacing:1.5px;
+}
+
+.killRows{
+  padding:7px;
 }
 
 .killRow{
-  position:relative;
-
-  height:50px;
+  height:48px;
 
   display:grid;
 
   grid-template-columns:
-    34px
+    31px
     minmax(0,1fr)
     42px
     minmax(0,1fr)
-    34px;
+    31px;
 
   align-items:center;
 
-  margin-bottom:4px;
-  padding:2px 4px;
+  gap:5px;
+
+  margin-bottom:5px;
+
+  padding:0 5px;
 
   background:
-    rgba(5,19,36,.78);
+    linear-gradient(
+      90deg,
+      rgba(12,28,49,.95),
+      rgba(7,14,27,.88)
+    );
 
-  border-bottom:1px solid
-    rgba(0,145,255,.18);
-
-  animation:feedIn .25s ease
-}
-
-@keyframes feedIn{
-  from{
-    opacity:0;
-    transform:translateX(-8px)
-  }
-  to{
-    opacity:1;
-    transform:none
-  }
+  border:1px solid rgba(70,150,220,.15);
 }
 
 .killLogo{
-  width:28px;
-  height:28px;
+  width:27px;
+  height:27px;
 
   object-fit:contain;
 
   background:transparent;
-  border:0
 }
 
 .player{
   min-width:0;
 
-  overflow:hidden;
-  white-space:nowrap;
-  text-overflow:ellipsis;
+  font-size:10px;
+  font-weight:1000;
 
-  font-size:9px;
-  font-weight:1000
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .killer{
   text-align:right;
-  padding-right:5px
 }
 
 .victim{
-  padding-left:5px
+  text-align:left;
+  color:#dbe7f5;
 }
 
 .weapon{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:8px;
+  font-weight:1000;
+
+  color:var(--gold);
+
   text-align:center;
 
-  color:#ffd800;
-
-  font-size:7px;
-  font-weight:900;
-
-  overflow:hidden;
   white-space:nowrap;
-  text-overflow:ellipsis
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-.weaponIcon{
-  display:block;
-  font-size:15px;
-  line-height:15px
-}
-
-.empty{
-  height:50px;
+.emptyFeed{
+  height:48px;
 
   display:flex;
   align-items:center;
   justify-content:center;
 
-  color:#55718e;
+  color:#6683a7;
 
-  font-size:8px;
-  font-weight:900;
+  font-size:9px;
+  font-weight:1000;
 
-  letter-spacing:1px
+  letter-spacing:2px;
 }
 
 /* ================= POINTS ================= */
@@ -317,233 +298,298 @@ html,body{
 .pointsPanel{
   position:absolute;
 
-  right:18px;
-  top:150px;
+  right:22px;
+  top:130px;
 
-  width:325px;
+  width:390px;
 
-  padding-bottom:5px
+  background:rgba(5,12,25,.95);
+
+  border:1px solid rgba(25,170,255,.55);
+
+  box-shadow:
+    0 0 18px rgba(0,150,255,.22);
+
+  overflow:hidden;
 }
 
-.tableHeader,
-.tableRow{
+.pointsHeader{
+  height:46px;
+
+  display:flex;
+  align-items:center;
+
+  padding:0 12px;
+
+  border-bottom:1px solid rgba(31,166,255,.35);
+}
+
+.pointsHeader:before{
+  content:"";
+  width:3px;
+  height:18px;
+
+  background:#19cfff;
+
+  margin-right:8px;
+
+  box-shadow:0 0 8px #19cfff;
+}
+
+.pointsTitle{
+  font-size:13px;
+  font-weight:1000;
+  letter-spacing:1.3px;
+}
+
+.pointsMap{
+  font-size:8px;
+  color:#7797bd;
+  font-weight:900;
+  margin-top:2px;
+  letter-spacing:1px;
+}
+
+.liveTag{
+  margin-left:auto;
+
+  color:#ff5360;
+
+  font-size:8px;
+  font-weight:1000;
+  letter-spacing:1px;
+}
+
+.columns{
+  height:27px;
+
   display:grid;
 
   grid-template-columns:
-    25px
+    28px
     1fr
-    42px
-    62px
+    48px
+    68px
     55px;
 
-  align-items:center
-}
+  align-items:center;
 
-.tableHeader{
-  height:28px;
+  color:#7797bd;
 
-  padding:0 7px;
-
-  color:#79a3c9;
-
-  font-size:7px;
+  font-size:8px;
   font-weight:1000;
 
-  border-bottom:1px solid
-    rgba(0,140,255,.25)
+  border-bottom:1px solid rgba(255,255,255,.08);
 }
 
-.tableRow{
-  position:relative;
+.columns div{
+  text-align:center;
+}
 
-  height:39px;
+.columns div:nth-child(2){
+  text-align:left;
+}
 
-  margin:0 6px;
+.table{
+  padding:5px 7px 7px;
+}
+
+.prow{
+  height:38px;
+
+  display:grid;
+
+  grid-template-columns:
+    28px
+    1fr
+    48px
+    68px
+    55px;
+
+  align-items:center;
+
+  margin:2px 0;
 
   padding:0 5px;
 
   background:
-    rgba(5,20,38,.72);
-
-  border-bottom:1px solid
-    rgba(255,255,255,.055);
-
-  font-size:8px
-}
-
-.tableRow:nth-child(1){
-  border-left:3px solid #ffd800;
-  background:
     linear-gradient(
       90deg,
-      rgba(255,216,0,.12),
-      rgba(5,20,38,.72)
-    )
+      rgba(9,23,43,.95),
+      rgba(7,14,28,.72)
+    );
+
+  border:1px solid rgba(70,150,220,.12);
+}
+
+.prow:first-child{
+  border-color:rgba(255,213,43,.55);
 }
 
 .rank{
-  font-size:9px;
+  text-align:center;
+
+  font-size:10px;
   font-weight:1000;
-  color:#91aaca;
-  text-align:center
 }
 
 .teamCell{
   display:flex;
   align-items:center;
-  gap:6px;
-  min-width:0
+
+  gap:7px;
+
+  min-width:0;
 }
 
-.tableLogo{
-  width:25px;
-  height:25px;
+.teamCell img{
+  width:27px;
+  height:27px;
 
   object-fit:contain;
-
-  background:transparent;
-  border:0
 }
 
-.tableTeamName{
+.teamName{
   min-width:0;
 
-  overflow:hidden;
-  white-space:nowrap;
-  text-overflow:ellipsis;
+  font-size:9px;
+  font-weight:1000;
 
-  font-size:8px;
-  font-weight:1000
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-.num{
+.number{
   text-align:center;
-  font-weight:1000
+
+  font-size:10px;
+  font-weight:1000;
 }
 
 .total{
-  color:#ffd800;
   text-align:center;
-  font-size:11px;
-  font-weight:1000
+
+  color:var(--gold);
+
+  font-size:12px;
+  font-weight:1000;
 }
 
-/* ================= TEAM ELIMINATED ================= */
+.noTeams{
+  padding:20px;
 
-#elimination{
+  text-align:center;
+
+  color:#6683a7;
+
+  font-size:9px;
+  font-weight:1000;
+
+  letter-spacing:2px;
+}
+
+/* ================= ELIMINATION ================= */
+
+#elimBanner{
   position:absolute;
 
   left:50%;
-  top:88px;
+  top:92px;
 
-  transform:
-    translateX(-50%)
-    translateY(-30px);
+  transform:translateX(-50%);
 
-  width:560px;
-  height:72px;
+  width:620px;
+  min-height:88px;
 
   display:none;
 
   align-items:center;
 
-  padding:0 16px;
+  padding:10px 24px;
 
   background:
     linear-gradient(
       90deg,
-      rgba(20,3,9,.98),
-      rgba(48,8,17,.98),
-      rgba(20,3,9,.98)
+      rgba(65,5,12,.98),
+      rgba(22,7,13,.97),
+      rgba(65,5,12,.98)
     );
 
-  border:1px solid #ff2448;
+  border:1px solid rgba(255,45,65,.8);
 
   box-shadow:
-    0 0 25px rgba(255,25,60,.45),
-    inset 0 0 25px rgba(255,25,60,.08);
-
-  clip-path:polygon(
-    3% 0,
-    97% 0,
-    100% 50%,
-    97% 100%,
-    3% 100%,
-    0 50%
-  );
+    0 0 30px rgba(255,25,50,.45),
+    inset 0 0 25px rgba(255,25,50,.12);
 
   z-index:100;
-
-  animation:elimIn .35s ease
-}
-
-@keyframes elimIn{
-  from{
-    opacity:0;
-    transform:
-      translateX(-50%)
-      translateY(-25px)
-  }
-
-  to{
-    opacity:1;
-    transform:
-      translateX(-50%)
-      translateY(0)
-  }
 }
 
 #elimLogo{
-  width:50px;
-  height:50px;
+  width:62px;
+  height:62px;
 
   object-fit:contain;
 
-  margin-right:14px;
-
-  background:transparent;
-  border:0
+  margin-right:18px;
 }
 
-.elimText{
-  min-width:0;
-  flex:1
+.elimContent{
+  text-align:left;
 }
 
-.elimSmall{
-  color:#ff3152;
+.elimTag{
+  color:#ff4057;
 
-  font-size:8px;
+  font-size:9px;
   font-weight:1000;
 
-  letter-spacing:2px;
-
-  margin-bottom:3px
+  letter-spacing:3px;
 }
 
 #elimName{
-  font-size:17px;
+  margin-top:3px;
+
+  color:#fff;
+
+  font-size:24px;
   font-weight:1000;
 
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis
+  letter-spacing:1px;
+
+  text-shadow:0 2px 8px #000;
 }
 
 .elimWord{
-  color:#ff2448;
+  margin-left:auto;
 
-  font-size:13px;
+  color:#ff304e;
+
+  font-size:22px;
   font-weight:1000;
 
-  letter-spacing:1px
+  letter-spacing:2px;
 }
 
-/* ================= HIDE OLD FOOTER ================= */
+/* ================= STATUS ================= */
 
-.footer,
-.bottomBar{
-  display:none!important
+#status{
+  position:absolute;
+
+  left:22px;
+  bottom:25px;
+
+  font-size:9px;
+
+  color:#587594;
+
+  letter-spacing:1.5px;
+
+  font-weight:800;
+}
+
+#loading{
+  display:none!important;
 }
 </style>
 </head>
@@ -552,7 +598,8 @@ html,body{
 
 <div id="stage">
 
-  <!-- TOP -->
+  <!-- TOP BAR -->
+
   <div class="topbar">
 
     <div class="live">
@@ -560,39 +607,120 @@ html,body{
       LIVE
     </div>
 
-    <div class="match">
-      <span id="matchTitle">MATCH 1</span>
-      <span> | </span>
-      <span class="gold" id="groupTitle">
+    <div class="matchblock">
+
+      <span
+        class="matchtitle"
+        id="matchTitle">
+        MATCH 1
+      </span>
+
+      <span
+        class="group"
+        id="groupTitle">
         GROUP A × B
       </span>
+
+      <span
+        class="day"
+        id="dayTitle">
+        DAY 1
+      </span>
+
+      <span
+        class="map"
+        id="mapTitle">
+        ERANGEL
+      </span>
+
     </div>
-
-    <span class="meta" id="dayTitle">
-      DAY 1
-    </span>
-
-    <span class="meta" id="mapTitle">
-      ERANGEL
-    </span>
 
   </div>
 
 
-  <!-- TEAM ELIMINATED -->
-  <div id="elimination">
+  <!-- ================= KILL FEED ================= -->
+
+  <section class="killPanel">
+
+    <div class="panelHeader">
+      <div class="panelTitle">
+        KILL FEED
+      </div>
+    </div>
+
+    <div
+      id="killRows"
+      class="killRows">
+
+      <div class="emptyFeed">
+        WAITING FOR KILLS...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ================= POINTS TABLE ================= -->
+
+  <section class="pointsPanel">
+
+    <div class="pointsHeader">
+
+      <div>
+        <div class="pointsTitle">
+          LIVE POINTS TABLE
+        </div>
+
+        <div class="pointsMap">
+          BGMI •
+          <span id="pointsMap">
+            ERANGEL
+          </span>
+        </div>
+      </div>
+
+      <div class="liveTag">
+        ● LIVE
+      </div>
+
+    </div>
+
+    <div class="columns">
+
+      <div>#</div>
+      <div>TEAM</div>
+      <div>KILLS</div>
+      <div>PLACEMENT</div>
+      <div>TOTAL</div>
+
+    </div>
+
+    <div
+      id="table"
+      class="table">
+
+      <div class="noTeams">
+        LOADING...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ================= TEAM ELIMINATED ================= -->
+
+  <div id="elimBanner">
 
     <img
       id="elimLogo"
       src=""
-      onerror="
-        this.style.visibility='hidden'
-      "
     >
 
-    <div class="elimText">
+    <div class="elimContent">
 
-      <div class="elimSmall">
+      <div class="elimTag">
         TEAM ELIMINATED
       </div>
 
@@ -609,63 +737,49 @@ html,body{
   </div>
 
 
-  <!-- KILL FEED -->
-  <section class="panel killPanel">
-
-    <div class="panelTitle">
-      <div class="titleLine"></div>
-      KILL FEED
-    </div>
-
-    <div id="feed">
-      <div class="empty">
-        WAITING FOR KILLS...
-      </div>
-    </div>
-
-  </section>
-
-
-  <!-- POINTS TABLE -->
-  <section class="panel pointsPanel">
-
-    <div class="panelTitle">
-      <div class="titleLine"></div>
-      LIVE POINTS TABLE
-    </div>
-
-    <div class="tableHeader">
-      <div>#</div>
-      <div>TEAM</div>
-      <div>KILLS</div>
-      <div>PLACEMENT</div>
-      <div>TOTAL</div>
-    </div>
-
-    <div id="pointsTable">
-      <div class="empty">
-        LOADING...
-      </div>
-    </div>
-
-  </section>
+  <div id="status">
+    CONNECTING...
+  </div>
 
 </div>
 
 
 <script>
 
-/* =========================
-   HELPERS
-========================= */
+/* =========================================================
+   SUPABASE
+========================================================= */
+
+const CFG =
+  window.KF_CONFIG || {};
+
+const SUPABASE_URL =
+  CFG.SUPABASE_URL ||
+  "https://nuywberanlfvngjnjcpx.supabase.co";
+
+const SUPABASE_KEY =
+  CFG.SUPABASE_PUBLISHABLE_KEY || "";
+
+const ROOM =
+  localStorage.getItem("kf_room") ||
+  "ADITYA8029";
+
+const sb =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
 
 const $ =
   id => document.getElementById(id);
 
 
-function escapeHTML(str){
+/* =========================================================
+   HELPERS
+========================================================= */
 
-  return String(str ?? "")
+function esc(s){
+  return String(s ?? "")
     .replace(
       /[&<>"']/g,
       m => ({
@@ -676,68 +790,67 @@ function escapeHTML(str){
         "'":"&#039;"
       }[m])
     );
-
 }
 
+function arr(v){
+  return Array.isArray(v)
+    ? v
+    : [];
+}
 
-/* =========================
-   SUPABASE
-========================= */
-
-const ROOM =
-  localStorage.getItem("kf_room")
-  || "ADITYA8029";
-
-
-async function getLiveState(){
+async function rpc(name,params){
 
   const r =
-    await supabase.rpc(
-      "kf_get_state",
-      {
-        p_room_code:ROOM
-      }
+    await sb.rpc(
+      name,
+      params
     );
 
   if(r.error)
     throw r.error;
 
   return r.data;
+}
+
+
+/* =========================================================
+   CLOUD
+========================================================= */
+
+async function getState(){
+
+  return rpc(
+    "kf_get_state",
+    {
+      p_room_code:ROOM
+    }
+  );
+
+}
+
+async function getEvents(){
+
+  return rpc(
+    "kf_events",
+    {
+      p_room_code:ROOM
+    }
+  );
 
 }
 
 
-async function getLiveEvents(){
-
-  const r =
-    await supabase.rpc(
-      "kf_events",
-      {
-        p_room_code:ROOM
-      }
-    );
-
-  if(r.error)
-    throw r.error;
-
-  return r.data || [];
-
-}
-
-
-/* =========================
-   TEAMS
-========================= */
+/* =========================================================
+   TEAM DATA
+========================================================= */
 
 function teamsFromConfig(c){
 
   const t =
     c?.teams;
 
-
   if(Array.isArray(t))
     return t;
-
 
   if(
     t &&
@@ -746,29 +859,25 @@ function teamsFromConfig(c){
 
     return Object.entries(t)
       .map(
-        ([key,value]) => {
+        ([key,val]) => {
 
           if(
-            value &&
-            typeof value === "object"
+            val &&
+            typeof val === "object"
           ){
 
             return {
-              ...value,
-
+              ...val,
               name:
-                value.name || key,
-
-              short:
-                value.short || key
-
+                val.name ||
+                key
             };
 
           }
 
           return {
             name:key,
-            short:key
+            players:[]
           };
 
         }
@@ -776,9 +885,7 @@ function teamsFromConfig(c){
 
   }
 
-
   return [];
-
 }
 
 
@@ -790,18 +897,6 @@ function teamName(t){
     t?.short ||
     t?.tag ||
     "UNKNOWN"
-  );
-
-}
-
-
-function teamShort(t){
-
-  return (
-    t?.short ||
-    t?.tag ||
-    t?.abbr ||
-    teamName(t)
   );
 
 }
@@ -828,7 +923,6 @@ function teamPlayers(t){
     t?.roster ??
     [];
 
-
   if(Array.isArray(p)){
 
     return p
@@ -847,9 +941,7 @@ function teamPlayers(t){
 
   }
 
-
   if(
-    p &&
     typeof p === "object"
   ){
 
@@ -861,6 +953,7 @@ function teamPlayers(t){
           : (
               x?.name ||
               x?.ign ||
+              x?.player ||
               ""
             )
       )
@@ -868,11 +961,11 @@ function teamPlayers(t){
 
   }
 
-
   return [];
-
 }
 
+
+/* Find player's team */
 
 function findTeam(c,player){
 
@@ -881,17 +974,15 @@ function findTeam(c,player){
       .trim()
       .toLowerCase();
 
-
   if(!p)
     return null;
-
 
   const teams =
     teamsFromConfig(c);
 
+  /* exact match */
 
-  return (
-
+  let found =
     teams.find(
       t =>
         teamPlayers(t)
@@ -902,10 +993,14 @@ function findTeam(c,player){
                 .toLowerCase()
               === p
           )
-    )
+    );
 
-    ||
+  if(found)
+    return found;
 
+  /* partial match */
+
+  found =
     teams.find(
       t =>
         teamPlayers(t)
@@ -927,20 +1022,15 @@ function findTeam(c,player){
 
             }
           )
-    )
+    );
 
-    ||
-
-    null
-
-  );
-
+  return found || null;
 }
 
 
-/* =========================
-   EVENT HELPERS
-========================= */
+/* =========================================================
+   EVENT DATA
+========================================================= */
 
 function eventTime(e){
 
@@ -956,7 +1046,6 @@ function eventTime(e){
 
 }
 
-
 function eventKiller(e){
 
   return (
@@ -968,7 +1057,6 @@ function eventKiller(e){
   );
 
 }
-
 
 function eventVictim(e){
 
@@ -982,7 +1070,6 @@ function eventVictim(e){
 
 }
 
-
 function eventWeapon(e){
 
   return (
@@ -995,159 +1082,39 @@ function eventWeapon(e){
 }
 
 
-/* =========================
-   KILL FEED
-========================= */
-
-function renderFeed(c,events){
-
-  const feed =
-    $("feed");
-
-
-  if(
-    !Array.isArray(events) ||
-    !events.length
-  ){
-
-    feed.innerHTML =
-      `<div class="empty">
-        WAITING FOR KILLS...
-      </div>`;
-
-    return;
-
-  }
-
-
-  const sorted =
-    [...events]
-      .sort(
-        (a,b) =>
-          eventTime(b) -
-          eventTime(a)
-      )
-      .slice(0,8);
-
-
-  feed.innerHTML =
-    sorted
-      .map(
-        e => {
-
-          const killer =
-            eventKiller(e);
-
-          const victim =
-            eventVictim(e);
-
-          const weapon =
-            eventWeapon(e);
-
-
-          const kt =
-            findTeam(
-              c,
-              killer
-            );
-
-          const vt =
-            findTeam(
-              c,
-              victim
-            );
-
-
-          return `
-
-            <div class="killRow">
-
-              <img
-                class="killLogo"
-                src="${escapeHTML(
-                  teamLogo(kt)
-                )}"
-                onerror="
-                  this.style.visibility='hidden'
-                "
-              >
-
-              <div class="player killer">
-                ${escapeHTML(killer)}
-              </div>
-
-              <div class="weapon">
-
-                <span class="weaponIcon">
-                  ⚔
-                </span>
-
-                ${escapeHTML(
-                  String(weapon)
-                )}
-
-              </div>
-
-              <div class="player victim">
-                ${escapeHTML(victim)}
-              </div>
-
-              <img
-                class="killLogo"
-                src="${escapeHTML(
-                  teamLogo(vt)
-                )}"
-                onerror="
-                  this.style.visibility='hidden'
-                "
-              >
-
-            </div>
-
-          `;
-
-        }
-      )
-      .join("");
-
-}
-
-
-/* =========================
+/* =========================================================
    KILL TOTALS
-========================= */
+========================================================= */
 
-const STORE =
-  "bgmi_kills_" + ROOM;
+const STORE_KEY =
+  "bgmi_overlay_kills_" +
+  ROOM;
 
-
-let killTotals = {};
+let totals = {};
 
 try{
 
-  killTotals =
+  totals =
     JSON.parse(
       localStorage.getItem(
-        STORE
+        STORE_KEY
       ) || "{}"
     ) || {};
 
 }catch{
 
-  killTotals = {};
+  totals = {};
 
 }
 
 
-function saveKills(){
+function saveTotals(){
 
   try{
 
     localStorage.setItem(
-      STORE,
-      JSON.stringify(
-        killTotals
-      )
+      STORE_KEY,
+      JSON.stringify(totals)
     );
 
   }catch{}
@@ -1155,79 +1122,194 @@ function saveKills(){
 }
 
 
-function applyKills(c,events){
+function applyEvents(c,events){
 
-  if(!Array.isArray(events))
+  arr(events).forEach(e => {
+
+    const id =
+      String(
+        e?.id ??
+        `${eventTime(e)}|${eventKiller(e)}|${eventVictim(e)}`
+      );
+
+    const killer =
+      eventKiller(e);
+
+    const team =
+      findTeam(
+        c,
+        killer
+      );
+
+    if(!team)
+      return;
+
+    const key =
+      teamName(team);
+
+    if(!totals[key]){
+
+      totals[key] = {
+        kills:0,
+        ids:{}
+      };
+
+    }
+
+    if(
+      !totals[key].ids[id]
+    ){
+
+      totals[key].kills++;
+
+      totals[key].ids[id] =
+        true;
+
+    }
+
+  });
+
+  saveTotals();
+
+}
+
+
+/* =========================================================
+   RENDER KILL FEED
+========================================================= */
+
+function renderKillFeed(c,events){
+
+  const list =
+    arr(events)
+      .slice(0,7);
+
+  const box =
+    $("killRows");
+
+  if(!list.length){
+
+    box.innerHTML = `
+      <div class="emptyFeed">
+        WAITING FOR KILLS...
+      </div>
+    `;
+
     return;
+  }
 
 
-  events.forEach(
-    e => {
+  box.innerHTML =
+    list.map(e => {
 
       const killer =
         eventKiller(e);
 
+      const victim =
+        eventVictim(e);
 
-      const team =
+      const weapon =
+        eventWeapon(e);
+
+      const killerTeam =
         findTeam(
           c,
           killer
         );
 
+      const victimTeam =
+        findTeam(
+          c,
+          victim
+        );
 
-      if(!team)
-        return;
+      const killerLogo =
+        teamLogo(
+          killerTeam
+        );
 
-
-      const name =
-        teamName(team);
-
-
-      const id =
-        String(
-          e?.id ||
-          (
-            eventTime(e)
-            + "|" +
-            killer
-            + "|" +
-            eventVictim(e)
-          )
+      const victimLogo =
+        teamLogo(
+          victimTeam
         );
 
 
-      if(!killTotals[name]){
+      return `
 
-        killTotals[name] = {
-          kills:0,
-          ids:{}
-        };
+        <div class="killRow">
 
-      }
-
-
-      if(
-        !killTotals[name].ids[id]
-      ){
-
-        killTotals[name].kills++;
-
-        killTotals[name].ids[id]=1;
-
-      }
-
-    }
-  );
+          ${
+            killerLogo
+            ?
+            `
+            <img
+              class="killLogo"
+              src="${esc(killerLogo)}"
+              onerror="
+                this.style.visibility='hidden'
+              "
+            >
+            `
+            :
+            `<div></div>`
+          }
 
 
-  saveKills();
+          <div
+            class="player killer"
+            title="${esc(killer)}">
+
+            ${esc(killer || "UNKNOWN")}
+
+          </div>
+
+
+          <div
+            class="weapon"
+            title="${esc(weapon)}">
+
+            ${esc(weapon)}
+
+          </div>
+
+
+          <div
+            class="player victim"
+            title="${esc(victim)}">
+
+            ${esc(victim || "UNKNOWN")}
+
+          </div>
+
+
+          ${
+            victimLogo
+            ?
+            `
+            <img
+              class="killLogo"
+              src="${esc(victimLogo)}"
+              onerror="
+                this.style.visibility='hidden'
+              "
+            >
+            `
+            :
+            `<div></div>`
+          }
+
+        </div>
+
+      `;
+
+    }).join("");
 
 }
 
 
-/* =========================
-   POINTS TABLE
-========================= */
+/* =========================================================
+   POINTS
+========================================================= */
 
 function number(v){
 
@@ -1237,11 +1319,10 @@ function number(v){
   return Number.isFinite(n)
     ? n
     : 0;
-
 }
 
 
-function placement(t){
+function getPlacement(t){
 
   return number(
     t?.placement ??
@@ -1253,53 +1334,66 @@ function placement(t){
 }
 
 
+function getKills(t){
+
+  const key =
+    teamName(t);
+
+  return (
+    totals[key]?.kills ||
+    number(t?.kills) ||
+    0
+  );
+
+}
+
+
+function getTotal(t){
+
+  return (
+    getKills(t) +
+    getPlacement(t)
+  );
+
+}
+
+
 function renderTable(c){
 
-  const box =
-    $("pointsTable");
+  const teams =
+    teamsFromConfig(c);
+
+  if(!teams.length){
+
+    $("table").innerHTML = `
+      <div class="noTeams">
+        NO TEAM DATA
+      </div>
+    `;
+
+    return;
+  }
 
 
   const rows =
-    teamsFromConfig(c)
+    teams
       .map(
-        (t,index)=>{
+        (t,i) => ({
 
-          const name =
-            teamName(t);
+          t,
 
+          index:i,
 
-          const kills =
-            killTotals[name]?.kills ||
-            number(
-              t?.kills ??
-              0
-            );
+          kills:
+            getKills(t),
 
+          placement:
+            getPlacement(t),
 
-          const place =
-            placement(t);
+          total:
+            getTotal(t)
 
-
-          const total =
-            number(
-              t?.total_points
-              ??
-              t?.total
-              ??
-              t?.points
-            ) ||
-            (kills + place);
-
-
-          return {
-            t,
-            kills,
-            place,
-            total,
-            index
-          };
-
-        }
+        })
       )
       .sort(
         (a,b) =>
@@ -1310,50 +1404,59 @@ function renderTable(c){
       .slice(0,16);
 
 
-  box.innerHTML =
-    rows
-      .map(
-        (r,i)=>`
+  $("table").innerHTML =
+    rows.map(
+      (r,i) => {
 
-          <div class="tableRow">
+        const logo =
+          teamLogo(r.t);
+
+        return `
+
+          <div class="prow">
 
             <div class="rank">
               ${i+1}
             </div>
 
+
             <div class="teamCell">
 
               ${
-                teamLogo(r.t)
+                logo
                 ?
-                `<img
-                  class="tableLogo"
-                  src="${escapeHTML(
-                    teamLogo(r.t)
-                  )}"
+                `
+                <img
+                  src="${esc(logo)}"
                   onerror="
                     this.style.visibility='hidden'
                   "
-                >`
+                >
+                `
                 :
                 ""
               }
 
-              <div class="tableTeamName">
-                ${escapeHTML(
-                  teamShort(r.t)
-                )}
+              <div
+                class="teamName"
+                title="${esc(teamName(r.t))}">
+
+                ${esc(teamName(r.t))}
+
               </div>
 
             </div>
 
-            <div class="num">
+
+            <div class="number">
               ${r.kills}
             </div>
 
-            <div class="num">
-              ${r.place}
+
+            <div class="number">
+              ${r.placement}
             </div>
+
 
             <div class="total">
               ${r.total}
@@ -1361,84 +1464,80 @@ function renderTable(c){
 
           </div>
 
-        `
-      )
-      .join("");
+        `;
+
+      }
+    ).join("");
 
 }
 
 
-/* =========================
+/* =========================================================
    BROADCAST
-========================= */
+========================================================= */
 
-function renderBroadcast(c){
+function broadcast(c){
 
   const b =
     c?.broadcast || {};
 
+  return {
 
-  $("matchTitle")
-    .textContent =
+    match:
       b.match ||
       c?.match ||
-      "MATCH 1";
+      c?.match_name ||
+      "MATCH 1",
 
-
-  $("groupTitle")
-    .textContent =
+    group:
       b.group ||
       c?.group ||
-      "GROUP A × B";
+      c?.group_name ||
+      "GROUP A × B",
 
-
-  $("dayTitle")
-    .textContent =
+    day:
       b.day ||
       c?.day ||
-      "DAY 1";
+      "DAY 1",
 
-
-  $("mapTitle")
-    .textContent =
+    map:
       b.map ||
       c?.map ||
-      "ERANGEL";
+      "ERANGEL"
+
+  };
 
 }
 
 
-/* =========================
-   TEAM ELIMINATION
-========================= */
+/* =========================================================
+   ELIMINATION
+========================================================= */
 
-let eliminatedShown =
+let shownElims =
   new Set();
 
-let eliminationTimer =
+let elimTimer =
   null;
 
 
-function isEliminated(t){
+/* Direct elimination flag */
 
-  if(
-    t?.eliminated === true ||
-    t?.is_eliminated === true
-  )
+function directEliminated(t){
+
+  if(t?.eliminated === true)
     return true;
 
+  if(t?.is_eliminated === true)
+    return true;
 
-  const status =
+  if(
     String(
       t?.status || ""
-    ).toLowerCase();
-
-
-  if(
-    status === "eliminated"
+    ).toLowerCase()
+    === "eliminated"
   )
     return true;
-
 
   const alive =
     t?.alive ??
@@ -1446,70 +1545,124 @@ function isEliminated(t){
     t?.players_alive ??
     t?.alivePlayers;
 
-
   if(
     alive !== undefined &&
     alive !== null &&
     alive !== "" &&
-    number(alive) <= 0
+    Number(alive) <= 0
   )
     return true;
 
-
   return false;
+}
+
+
+/* Also detect elimination from all roster
+   players appearing as victims */
+
+function inferredEliminated(
+  team,
+  events
+){
+
+  const players =
+    teamPlayers(team)
+      .map(
+        x =>
+          String(x)
+            .trim()
+            .toLowerCase()
+      )
+      .filter(Boolean);
+
+  if(
+    players.length === 0
+  )
+    return false;
+
+
+  const dead =
+    new Set();
+
+  arr(events).forEach(e => {
+
+    const victim =
+      String(
+        eventVictim(e)
+      )
+      .trim()
+      .toLowerCase();
+
+    if(victim)
+      dead.add(victim);
+
+  });
+
+
+  return players.every(
+    p =>
+      [...dead].some(
+        d =>
+          d === p ||
+          d.includes(p) ||
+          p.includes(d)
+      )
+  );
 
 }
 
 
-function showElimination(t){
+function showElimination(team){
 
-  const banner =
-    $("elimination");
-
+  const name =
+    teamName(team);
 
   const logo =
+    teamLogo(team);
+
+  const img =
     $("elimLogo");
 
 
-  const src =
-    teamLogo(t);
+  if(logo){
 
+    img.src =
+      logo;
 
-  if(src){
-
-    logo.src =
-      src;
-
-    logo.style.visibility =
-      "visible";
+    img.style.display =
+      "block";
 
   }else{
 
-    logo.style.visibility =
-      "hidden";
+    img.style.display =
+      "none";
 
   }
 
 
   $("elimName")
     .textContent =
-      teamName(t);
+    name;
 
 
-  banner.style.display =
+  $("elimBanner")
+    .style.display =
     "flex";
 
 
   clearTimeout(
-    eliminationTimer
+    elimTimer
   );
 
 
-  eliminationTimer =
+  elimTimer =
     setTimeout(
-      ()=>{
-        banner.style.display =
+      () => {
+
+        $("elimBanner")
+          .style.display =
           "none";
+
       },
       5000
     );
@@ -1517,85 +1670,121 @@ function showElimination(t){
 }
 
 
-function checkEliminations(c){
+function checkEliminations(
+  c,
+  events
+){
 
   const teams =
     teamsFromConfig(c);
 
+  teams.forEach(team => {
 
-  teams.forEach(
-    t => {
+    const name =
+      teamName(team);
 
-      if(
-        !isEliminated(t)
+    if(
+      shownElims.has(name)
+    )
+      return;
+
+
+    if(
+      directEliminated(team) ||
+      inferredEliminated(
+        team,
+        events
       )
-        return;
+    ){
 
+      shownElims.add(name);
 
-      const name =
-        teamName(t);
-
-
-      if(
-        eliminatedShown.has(name)
-      )
-        return;
-
-
-      eliminatedShown.add(name);
-
-
-      showElimination(t);
+      showElimination(team);
 
     }
-  );
+
+  });
 
 }
 
 
-/* =========================
+/* =========================================================
    MAIN LOOP
-========================= */
+========================================================= */
 
-async function update(){
+async function tick(){
 
   try{
 
     const [
-      state,
+      c,
       events
     ] =
       await Promise.all([
-        getLiveState(),
-        getLiveEvents()
+        getState(),
+        getEvents()
       ]);
 
 
-    renderBroadcast(
-      state
-    );
+    /* KILLS */
 
-
-    applyKills(
-      state,
+    applyEvents(
+      c,
       events
     );
 
 
-    renderFeed(
-      state,
+    /* KILL FEED */
+
+    renderKillFeed(
+      c,
       events
     );
 
 
-    renderTable(
-      state
-    );
+    /* BROADCAST */
 
+    const b =
+      broadcast(c);
+
+
+    $("matchTitle")
+      .textContent =
+      b.match;
+
+    $("groupTitle")
+      .textContent =
+      b.group;
+
+    $("dayTitle")
+      .textContent =
+      b.day;
+
+    $("mapTitle")
+      .textContent =
+      b.map;
+
+    $("pointsMap")
+      .textContent =
+      b.map;
+
+
+    /* POINTS TABLE */
+
+    renderTable(c);
+
+
+    /* ELIMINATION */
 
     checkEliminations(
-      state
+      c,
+      events
     );
+
+
+    $("status")
+      .textContent =
+      `LIVE SYNC • ROOM ${ROOM} • AUTO UPDATE`;
 
 
   }catch(err){
@@ -1605,15 +1794,21 @@ async function update(){
       err
     );
 
+    $("status")
+      .textContent =
+      "LIVE DATA CONNECTION ERROR • RETRYING...";
+
   }
 
 }
 
 
-update();
+/* START */
+
+tick();
 
 setInterval(
-  update,
+  tick,
   1000
 );
 
