@@ -11,7 +11,6 @@
   --violet:#8b5cff;
   --cyan:#4de8ff;
   --red:#ff425d;
-  --panel:rgba(7,10,16,.94);
 }
 
 *{
@@ -72,7 +71,7 @@ html,body{
 
   border:1px solid #ffffff20;
   padding:0 34px 0 18px;
-  min-width:585px;
+  min-width:260px;
 
   clip-path:polygon(
     0 0,
@@ -85,21 +84,10 @@ html,body{
   box-shadow:0 10px 30px #0008;
 }
 
-.live{
-  font-weight:1000;
-  font-size:22px;
-  background:#e9283f;
-  padding:9px 17px;
-  margin-right:17px;
-}
-
 .match{
   font-size:24px;
   font-weight:900;
-}
-
-.gold{
-  color:var(--gold);
+  letter-spacing:.5px;
 }
 
 /* ================= KILL FEED ================= */
@@ -444,8 +432,6 @@ html,body{
   margin-right:7px;
 }
 
-/* ================= ANIMATION ================= */
-
 @keyframes enter{
   from{
     opacity:0;
@@ -466,26 +452,18 @@ html,body{
 
 <div id="stage">
 
-  <!-- ================= TOP BAR ================= -->
+  <!-- TOP BAR -->
 
   <div class="topbar">
 
-    <div class="live">
-      LIVE
-    </div>
-
     <div class="match">
       <span id="matchTitle">MATCH 1</span>
-      <span> | </span>
-      <span class="gold" id="groupTitle">
-        GROUP A × B
-      </span>
     </div>
 
   </div>
 
 
-  <!-- ================= KILL FEED ================= -->
+  <!-- KILL FEED -->
 
   <section class="feedWrap">
 
@@ -498,7 +476,7 @@ html,body{
   </section>
 
 
-  <!-- ================= POINTS TABLE ================= -->
+  <!-- POINTS TABLE -->
 
   <section class="points">
 
@@ -518,7 +496,6 @@ html,body{
 
     </div>
 
-
     <div class="ptCols">
 
       <span>#</span>
@@ -530,13 +507,12 @@ html,body{
 
     </div>
 
-
     <div id="table"></div>
 
   </section>
 
 
-  <!-- ================= FOOTER ================= -->
+  <!-- FOOTER -->
 
   <footer class="footer">
 
@@ -557,18 +533,11 @@ html,body{
 
       <div class="stat">
 
-        <div class="ico">
-          ♟
-        </div>
+        <div class="ico">♟</div>
 
         <div>
-          <small>
-            Remaining
-          </small>
-
-          <b id="remaining">
-            16 Teams
-          </b>
+          <small>Remaining</small>
+          <b id="remaining">16 Teams</b>
         </div>
 
       </div>
@@ -576,18 +545,11 @@ html,body{
 
       <div class="stat">
 
-        <div class="ico">
-          ⚔
-        </div>
+        <div class="ico">⚔</div>
 
         <div>
-          <small>
-            Finishes
-          </small>
-
-          <b id="finishes">
-            0
-          </b>
+          <small>Finishes</small>
+          <b id="finishes">0</b>
         </div>
 
       </div>
@@ -595,18 +557,11 @@ html,body{
 
       <div class="stat">
 
-        <div class="ico">
-          ◈
-        </div>
+        <div class="ico">◈</div>
 
         <div>
-          <small>
-            Day
-          </small>
-
-          <b id="day">
-            DAY 1
-          </b>
+          <small>Day</small>
+          <b id="day">DAY 1</b>
         </div>
 
       </div>
@@ -614,18 +569,11 @@ html,body{
 
       <div class="stat">
 
-        <div class="ico">
-          ◷
-        </div>
+        <div class="ico">◷</div>
 
         <div>
-          <small>
-            Time
-          </small>
-
-          <b id="mtime">
-            00:00
-          </b>
+          <small>Time</small>
+          <b id="mtime">00:00</b>
         </div>
 
       </div>
@@ -633,18 +581,11 @@ html,body{
 
       <div class="stat">
 
-        <div class="ico">
-          ⌖
-        </div>
+        <div class="ico">⌖</div>
 
         <div>
-          <small>
-            Map
-          </small>
-
-          <b id="map">
-            ERANGEL
-          </b>
+          <small>Map</small>
+          <b id="map">ERANGEL</b>
         </div>
 
       </div>
@@ -664,12 +605,8 @@ html,body{
 </div>
 
 
-<!-- ================= SUPABASE ================= -->
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script src="config.js"></script>
-
 <script src="supabase.js"></script>
 
 
@@ -677,8 +614,6 @@ html,body{
 
 let shown = new Map();
 
-
-/* ================= SECURITY ================= */
 
 function esc(s){
 
@@ -696,8 +631,6 @@ function esc(s){
 }
 
 
-/* ================= TEAM COLORS ================= */
-
 const teamColor = i => [
 
   '#ffd447',
@@ -710,11 +643,10 @@ const teamColor = i => [
 ][i % 6];
 
 
-/* ================= FIND TEAM ================= */
-
 function teamOf(name,c){
 
-  let n = String(name || '').toLowerCase();
+  const n =
+    String(name || '').toLowerCase();
 
   return (c.teams || []).find(
     t =>
@@ -733,7 +665,6 @@ function renderFeed(c,events){
 
   const box =
     document.getElementById('feed');
-
 
   const by = new Map();
 
@@ -759,7 +690,8 @@ function renderFeed(c,events){
   );
 
 
-  const live = events.slice(-5);
+  const live =
+    events.slice(-5);
 
 
   for(const e of live){
@@ -786,7 +718,8 @@ function renderFeed(c,events){
       document.createElement('div');
 
 
-    el.className = 'kill';
+    el.className =
+      'kill';
 
 
     el.style.setProperty(
@@ -853,7 +786,8 @@ function renderFeed(c,events){
           shown.get(e.id) === el
         ){
 
-          el.style.opacity = '0';
+          el.style.opacity =
+            '0';
 
           el.style.transform =
             'translateX(-25px)';
@@ -885,7 +819,8 @@ function renderFeed(c,events){
 
 function renderTable(c,events){
 
-  let stats = new Map();
+  const stats =
+    new Map();
 
 
   (c.teams || []).forEach(
@@ -1042,7 +977,7 @@ function renderTable(c,events){
 }
 
 
-/* ================= BROADCAST SETTINGS ================= */
+/* ================= BROADCAST ================= */
 
 function updateBroadcast(c){
 
@@ -1055,13 +990,6 @@ function updateBroadcast(c){
   ).textContent =
     b.match ||
     'MATCH 1';
-
-
-  document.getElementById(
-    'groupTitle'
-  ).textContent =
-    b.group ||
-    'GROUP A × B';
 
 
   document.getElementById(
@@ -1099,16 +1027,18 @@ function updateBroadcast(c){
 }
 
 
-/* ================= MATCH TIMER ================= */
+/* ================= TIMER ================= */
 
-let startTime = Date.now();
+let startTime =
+  Date.now();
 
 
 function updateTimer(){
 
   const elapsed =
     Math.floor(
-      (Date.now() - startTime) / 1000
+      (Date.now() - startTime) /
+      1000
     );
 
 
@@ -1132,7 +1062,7 @@ function updateTimer(){
 }
 
 
-/* ================= MAIN UPDATE ================= */
+/* ================= UPDATE ================= */
 
 async function tick(){
 
@@ -1141,13 +1071,14 @@ async function tick(){
     const [
       c,
       events
-    ] = await Promise.all([
+    ] =
+      await Promise.all([
 
-      getState(),
+        getState(),
 
-      getEvents()
+        getEvents()
 
-    ]);
+      ]);
 
 
     renderFeed(
