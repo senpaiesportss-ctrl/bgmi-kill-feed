@@ -514,8 +514,14 @@ async function testElimination(){
     cfg.test_elimination={
       team:victimTeam.team.name,
       nonce:Date.now(),
-      expires_at:Date.now()+12000
+      expires_at:Date.now()+60000
     };
+    // Mark the selected test team eliminated in cloud state as well.
+    // This guarantees the overlay can display the banner even if the four
+    // event rows arrive with a delay.
+    victimTeam.team.eliminated=true;
+    victimTeam.team.status="ELIMINATED";
+    victimTeam.team.alive=0;
     await setState(cfg);
 
     for(let i=0;i<4;i++){
@@ -527,7 +533,7 @@ async function testElimination(){
     }
 
     // Keep the flag fresh for the overlay while the four test events arrive.
-    cfg.test_elimination.expires_at=Date.now()+12000;
+    cfg.test_elimination.expires_at=Date.now()+60000;
     await setState(cfg);
     pingOverlay();
 
