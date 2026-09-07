@@ -22,76 +22,102 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 <section class="points"><div class="pointsHead"><div><div class="title">LIVE POINTS TABLE</div><div class="subtitle">BGMI • <span id="mapMini">ERANGEL</span></div></div><div class="liveTag"><i></i>LIVE</div></div><div class="columns"><div>#</div><div>TEAM</div><div>KILLS</div><div>PLACEMENT</div><div>TOTAL</div></div><div id="table"></div></section>
 <div id="status">LIVE SYNC • ROOM ADITYA8029 • AUTO UPDATE</div></div>
 <script>
+/* ===================== LIVE ENGINE — FINAL ===================== */
 const CFG=window.KF_CONFIG||{};
 const SUPABASE_URL=CFG.SUPABASE_URL||"https://nuywberanlfvngjnjcpx.supabase.co";
 const SUPABASE_KEY=CFG.SUPABASE_PUBLISHABLE_KEY||"";
 const ROOM=localStorage.getItem("kf_room")||"ADITYA8029";
-const POLL_MS=500;
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const POLL_MS=900;
+
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  global:{fetch:(input,init={})=>fetch(input,{...init,cache:"no-store"})}
+});
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-async function rpc(n,p){
-  const work=sb.rpc(n,p);
-  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error("LIVE REQUEST TIMEOUT")),5000));
-  const r=await Promise.race([work,timeout]);
-  if(r.error)throw r.error;
-  return r.data
-}
-const getState=()=>rpc("kf_get_state",{p_room_code:ROOM});
-const getEvents=()=>rpc("kf_events",{p_room_code:ROOM});
 
-const arr=v=>Array.isArray(v)?v:[];
+async function rpc(name,params){
+  const {data,error}=await sb.rpc(name,params);
+  if(error) throw error;
+  return data;
+}
+async function getState(){return rpc("kf_get_state",{p_room_code:ROOM});}
+async function getEvents(){return rpc("kf_events",{p_room_code:ROOM});}
+
 function teamsFromConfig(c){
   const t=c?.teams;
-  if(Array.isArray(t))return t;
-  if(t&&typeof t==="object")return Object.entries(t).map(([k,v])=>v&&typeof v==="object"?{...v,name:v.name||k,short:v.short||k}:{name:k,short:k});
+  if(Array.isArray(t)) return t;
+  if(t&&typeof t==="object") return Object.entries(t).map(([k,v])=>v&&typeof v==="object"?{...v,name:v.name||k,short:v.short||v.tag||k}:{name:k,short:k});
   return [];
 }
-function teamName(t){return t?.name||t?.team||t?.short||t?.tag||"UNKNOWN"}
-function teamShort(t){return t?.short||t?.tag||t?.abbr||teamName(t)}
-function teamLogo(t){return t?.logo||t?.logo_url||t?.image||t?.image_url||""}
+function teamName(t){return t?.name||t?.team||t?.short||t?.tag||"UNKNOWN";}
+function teamShort(t){return t?.short||t?.tag||teamName(t);}
+function teamLogo(t){return t?.logo||t?.logo_url||t?.image||t?.image_url||"";}
 function teamPlayers(t){
   const p=t?.players??t?.members??t?.roster??[];
-  if(Array.isArray(p))return p.map(x=>typeof x==="string"?x:(x?.name||x?.ign||x?.player||"")).filter(Boolean);
-  if(typeof p==="object")return Object.values(p).map(x=>typeof x==="string"?x:(x?.name||x?.ign||"")).filter(Boolean);
+  if(Array.isArray(p)) return p.map(x=>typeof x==="string"?x:(x?.name||x?.ign||x?.player||"")).filter(Boolean);
+  if(p&&typeof p==="object") return Object.values(p).map(x=>typeof x==="string"?x:(x?.name||x?.ign||x?.player||"")).filter(Boolean);
   return [];
 }
 function findTeam(c,player){
-  const p=String(player||"").trim().toLowerCase();if(!p)return null;
+  const p=String(player||"").trim().toLowerCase();
+  if(!p) return null;
   const ts=teamsFromConfig(c);
-  return ts.find(t=>teamPlayers(t).some(x=>String(x).trim().toLowerCase()===p))
-    ||ts.find(t=>teamPlayers(t).some(x=>p.includes(String(x).trim().toLowerCase())||String(x).trim().toLowerCase().includes(p)))
-    ||null;
+  return ts.find(t=>teamPlayers(t).some(x=>String(x).trim().toLowerCase()===p))||
+         ts.find(t=>teamPlayers(t).some(x=>{
+           const n=String(x).trim().toLowerCase();
+           return n&&(p.includes(n)||n.includes(p));
+         }))||null;
 }
-function eventTime(e){return new Date(e?.time||e?.created_at||e?.timestamp||0).getTime()||0}
-function eventKiller(e){return e?.killer||e?.p_killer||e?.killer_name||e?.attacker||""}
-function eventVictim(e){return e?.victim||e?.p_victim||e?.victim_name||e?.target||""}
-function eventWeapon(e){return e?.weapon||e?.p_weapon||e?.weapon_name||"RIFLE"}
-function num(v,d=0){const n=Number(v);return Number.isFinite(n)?n:d}
-function configuredKills(t){return num(t?.kills??t?.kill_count??t?.kills_total,0)}
-function configuredPoints(t){const v=t?.points??t?.pts??t?.total_points??t?.totalPts??t?.score;return v===undefined||v===null||v===""?null:num(v,0)}
-function configuredAlive(t){const v=t?.alive??t?.alive_count??t?.players_alive??t?.alivePlayers;return v===undefined||v===null||v===""?null:num(v,0)}
-
-const STORE_KEY="kf_overlay_totals_"+ROOM;
-let totals={};try{totals=JSON.parse(localStorage.getItem(STORE_KEY)||"{}")||{}}catch{}
-function saveTotals(){try{localStorage.setItem(STORE_KEY,JSON.stringify(totals))}catch{}}
-function applyEvents(c,events){
-  arr(events).forEach(e=>{
-    const t=findTeam(c,eventKiller(e));if(!t)return;
-    const key=teamName(t),id=String(e?.id??`${eventTime(e)}|${eventKiller(e)}|${eventVictim(e)}`);
-    if(!totals[key])totals[key]={kills:0,ids:{}};
-    if(!totals[key].ids[id]){totals[key].kills++;totals[key].ids[id]=1}
-  });saveTotals();
+function eventTime(e){
+  const v=e?.time??e?.created_at??e?.timestamp??e?.createdAt??0;
+  const n=typeof v==="number"?v:new Date(v).getTime();
+  return Number.isFinite(n)?n:0;
+}
+function eventKiller(e){return e?.killer??e?.p_killer??e?.killer_name??e?.attacker??e?.killerName??"";}
+function eventVictim(e){return e?.victim??e?.p_victim??e?.victim_name??e?.target??e?.victimName??"";}
+function eventWeapon(e){return e?.weapon??e?.p_weapon??e?.weapon_name??e?.weaponName??"GUN";}
+function eventKey(e){
+  if(e?.id!==undefined&&e?.id!==null) return "ID:"+String(e.id);
+  return [eventTime(e),eventKiller(e),eventVictim(e),eventWeapon(e)].join("|");
+}
+function normalizeEvents(raw){
+  if(typeof raw==="string"){try{raw=JSON.parse(raw)}catch{return[]}}
+  if(Array.isArray(raw)) return raw;
+  if(raw&&Array.isArray(raw.events)) return raw.events;
+  if(raw&&Array.isArray(raw.data)) return raw.data;
+  if(raw&&Array.isArray(raw.result)) return raw.result;
+  return [];
+}
+function sortedEvents(raw){
+  const seen=new Set(),out=[];
+  for(const e of normalizeEvents(raw)){
+    const k=eventKey(e);
+    if(seen.has(k)) continue;
+    seen.add(k);out.push(e);
+  }
+  return out.sort((a,b)=>eventTime(b)-eventTime(a));
+}
+function configuredKills(t){
+  const v=t?.kills??t?.kill_count??t?.kills_total;
+  const n=Number(v);return Number.isFinite(n)?n:0;
+}
+function configuredPoints(t){
+  const v=t?.points??t?.pts??t?.total_points??t?.totalPts??t?.score;
+  if(v===undefined||v===null||v==="") return null;
+  const n=Number(v);return Number.isFinite(n)?n:0;
+}
+function configuredAlive(t){
+  const v=t?.alive??t?.alive_count??t?.players_alive??t?.alivePlayers;
+  if(v===undefined||v===null||v==="") return null;
+  const n=Number(v);return Number.isFinite(n)?n:0;
 }
 function broadcast(c){
   const b=c?.broadcast||{};
   return {
-    tournament:b.tournament||c?.tournament||"",
     match:b.match||c?.match||c?.match_name||"MATCH 1",
     group:b.group||c?.group||c?.group_name||"GROUP A × B",
     day:b.day||c?.day||"DAY 1",
-    map:b.map||c?.map||"ERANGEL",
-    remaining:b.remaining??c?.remaining_teams??teamsFromConfig(c).length
+    map:b.map||c?.map||"ERANGEL"
   };
 }
 function weaponIcon(w){
@@ -104,196 +130,144 @@ function weaponIcon(w){
   return "➤";
 }
 
-/* ---------- LIVE EVENT ENGINE ---------- */
-function normalizeEvents(raw){
-  if(typeof raw === "string"){ try{ raw=JSON.parse(raw); }catch{} }
-  if(Array.isArray(raw)) return raw;
-  if(raw&&Array.isArray(raw.events)) return raw.events;
-  if(raw&&Array.isArray(raw.data)) return raw.data;
-  if(raw&&Array.isArray(raw.result)) return raw.result;
-  return [];
-}
-function eventKey(e){
-  if(e?.id!==undefined&&e?.id!==null) return 'ID:'+String(e.id);
-  return [eventTime(e),eventKiller(e),eventVictim(e),eventWeapon(e)].join('|');
-}
-function uniqueEvents(raw){
-  const seen=new Set(),out=[];
-  for(const e of normalizeEvents(raw)){
-    const k=eventKey(e);
-    if(seen.has(k)) continue;
-    seen.add(k);out.push(e);
-  }
-  return out;
-}
-function sortedEvents(raw){
-  return uniqueEvents(raw).sort((a,b)=>eventTime(b)-eventTime(a));
-}
-function getKillCounts(c,events){
-  const counts={};
-  for(const e of sortedEvents(events)){
-    const t=findTeam(c,eventKiller(e));
-    if(!t) continue;
-    const key=teamName(t);
-    counts[key]=(counts[key]||0)+1;
-  }
-  return counts;
-}
-function getEliminatedTeams(c,events){
-  const teams=teamsFromConfig(c);
-  const victims=new Map();
-  teams.forEach(t=>victims.set(teamName(t),new Set()));
-  for(const e of sortedEvents(events)){
-    const v=String(eventVictim(e)||"").trim();
-    if(!v) continue;
-    const t=findTeam(c,v);
-    if(!t) continue;
-    const key=teamName(t);
-    if(!victims.has(key)) victims.set(key,new Set());
-    victims.get(key).add(v.toLowerCase());
-  }
-  return teams.filter(t=>{
-    const key=teamName(t);
-    const configured=(t?.eliminated===true||String(t?.status||"").toUpperCase()==="ELIMINATED"||configuredAlive(t)===0);
-    const set=victims.get(key);
-    return configured || !!(set && set.size>=4);
-  });
-}
-
-/* ---------- KILL FEED: NEW KILL -> SHOW, 5 SEC -> HIDE ---------- */
+/* ---------- KILL FEED ---------- */
 let feedTimer=null;
 let lastFeedKey="";
 function hideFeed(){
-  const wrap=document.querySelector('.feedWrap');
-  if(wrap){ wrap.classList.add('feedHidden'); wrap.style.display='none'; }
+  const w=document.querySelector(".feedWrap");
+  if(w){w.classList.add("feedHidden");w.style.display="none";}
 }
 function showFeed(){
-  const wrap=document.querySelector('.feedWrap');
-  if(wrap){ wrap.classList.remove('feedHidden'); wrap.style.display='block'; }
+  const w=document.querySelector(".feedWrap");
+  if(w){w.classList.remove("feedHidden");w.style.display="block";}
 }
 function renderFeed(c,events){
   const recent=sortedEvents(events);
-  if(!recent.length){
-    hideFeed();
-    lastFeedKey="";
-    return;
-  }
+  if(!recent.length){hideFeed();return;}
   const e=recent[0];
-  const key=eventKey(e);
-  if(key===lastFeedKey) return;
-  lastFeedKey=key;
-
+  const k=eventKey(e);
+  if(k===lastFeedKey) return;
+  lastFeedKey=k;
   const killer=eventKiller(e),victim=eventVictim(e),weapon=eventWeapon(e);
-  const kt=findTeam(c,killer),vt=findTeam(c,victim),kl=teamLogo(kt),vl=teamLogo(vt);
+  const kt=findTeam(c,killer),vt=findTeam(c,victim);
+  const kl=teamLogo(kt),vl=teamLogo(vt);
   $("feed").innerHTML=`<div class="killrow glass">
-    <div class="logoBox">${kl?`<img src="${esc(kl)}">`:""}</div>
-    <div><div class="kname">${esc(teamShort(kt)||"—")}</div><div class="pname">${esc(killer)}</div></div>
+    <div class="logoBox">${kl?`<img src="${esc(kl)}">`:``}</div>
+    <div><div class="kname">${esc(teamName(kt)||"—")}</div><div class="pname">${esc(killer)}</div></div>
     <div class="weaponBox"><div class="weaponIcon">${weaponIcon(weapon)}</div><div class="weaponLabel">${esc(String(weapon).slice(0,12).toUpperCase())}</div></div>
-    <div class="victim"><div class="kname">${esc(teamShort(vt)||"—")}</div><div class="pname">${esc(victim)}</div></div>
-    <div class="logoBox">${vl?`<img src="${esc(vl)}">`:""}</div>
+    <div class="victim"><div class="kname">${esc(teamName(vt)||"—")}</div><div class="pname">${esc(victim)}</div></div>
+    <div class="logoBox">${vl?`<img src="${esc(vl)}">`:``}</div>
   </div>`;
   showFeed();
   clearTimeout(feedTimer);
   feedTimer=setTimeout(hideFeed,5000);
 }
 
-/* ---------- POINTS TABLE: LIVE CLOUD EVENTS ---------- */
+/* ---------- POINTS ---------- */
+function getKillCounts(c,events){
+  const counts={};
+  for(const e of sortedEvents(events)){
+    const t=findTeam(c,eventKiller(e));
+    if(!t) continue;
+    const key=teamName(t);counts[key]=(counts[key]||0)+1;
+  }
+  return counts;
+}
+function getEliminatedTeams(c,events){
+  const teams=teamsFromConfig(c),victims=new Map();
+  teams.forEach(t=>victims.set(teamName(t),new Set()));
+  for(const e of sortedEvents(events)){
+    const v=String(eventVictim(e)||"").trim();
+    const t=findTeam(c,v);if(!t||!v)continue;
+    const key=teamName(t);if(!victims.has(key))victims.set(key,new Set());
+    victims.get(key).add(v.toLowerCase());
+  }
+  return teams.filter(t=>{
+    const configured=t?.eliminated===true||String(t?.status||"").toUpperCase()==="ELIMINATED"||configuredAlive(t)===0;
+    const dead=victims.get(teamName(t));
+    return configured||(dead&&dead.size>=4);
+  });
+}
 function renderTable(c,events){
-  const counts=getKillCounts(c,events);
-  const eliminated=new Set(getEliminatedTeams(c,events).map(teamName));
+  const counts=getKillCounts(c,events),elim=new Set(getEliminatedTeams(c,events).map(teamName));
   const rows=teamsFromConfig(c).map((t,i)=>{
-    const key=teamName(t);
-    const kills=configuredKills(t)+(counts[key]||0);
-    const rawPlacement=t?.placement??t?.placement_points??t?.placementPoints??t?.place_points??t?.position_points??0;
-    const placement=num(rawPlacement,0);
-    const configuredTotal=configuredPoints(t);
-    const total=configuredTotal!==null ? configuredTotal+(counts[key]||0) : placement+kills;
-    return {t,key,kills,placement,total,alive:eliminated.has(key)?0:configuredAlive(t),i};
+    const key=teamName(t),kills=configuredKills(t)+(counts[key]||0);
+    const placement=Number(t?.placement??t?.placement_points??t?.placementPoints??t?.place_points??t?.position_points??0)||0;
+    const cp=configuredPoints(t),total=cp!==null?cp+(counts[key]||0):placement+kills;
+    return {t,key,kills,placement,total,i,eliminated:elim.has(key)};
   }).sort((a,b)=>b.total-a.total||b.kills-a.kills||b.placement-a.placement||a.i-b.i).slice(0,16);
   $("table").innerHTML=rows.map((r,i)=>`<div class="prow ${i===0?'top':''}">
     <div class="rank">${i+1}</div>
     <div class="team">${teamLogo(r.t)?`<img src="${esc(teamLogo(r.t))}">`:''}<b>${esc(teamName(r.t))}</b></div>
-    <div class="num">${r.kills}</div>
-    <div class="num">${r.placement}</div>
-    <div class="pts">${r.total}</div>
-  </div>`).join('') || '<div class="empty">NO TEAM DATA</div>';
+    <div class="num">${r.kills}</div><div class="num">${r.placement}</div><div class="pts">${r.total}</div>
+  </div>`).join("")||'<div class="empty">NO TEAM DATA</div>';
 }
 
 /* ---------- ELIMINATION ---------- */
-let knownEliminated=new Set();
+let shownElims=new Set();
 let elimTimer=null;
-let currentMatchKey="";
-function eliminationSignature(t,events,c){
-  const team=teamName(t).toLowerCase();
-  const victims=new Set();
+let matchKey="";
+function elimKey(t,c,events){
+  const team=teamName(t).toLowerCase(),dead=new Set();
   for(const e of sortedEvents(events)){
     const v=String(eventVictim(e)||"").trim().toLowerCase();
-    if(v && findTeam(c,v) && teamName(findTeam(c,v)).toLowerCase()===team) victims.add(v);
+    if(v){const vt=findTeam(c,v);if(vt&&teamName(vt).toLowerCase()===team)dead.add(v);}
   }
-  return team+"|"+Array.from(victims).sort().join(",")+"|"+(t?.eliminated===true?1:0)+"|"+(String(t?.status||"").toUpperCase()==="ELIMINATED"?1:0)+"|"+(configuredAlive(t)===0?1:0);
+  return team+"|"+[...dead].sort().join(",");
 }
 function showElimination(t){
-  const alert=$("elimAlert"),logo=$("elimLogo"),name=$("elimTeam");
-  if(!alert||!name)return;
-  const url=teamLogo(t);
-  logo.innerHTML=url?`<img src="${esc(url)}">`:``;
-  name.textContent=teamName(t);
-  alert.classList.remove("show");
-  void alert.offsetWidth;
-  alert.classList.add("show");
-  clearTimeout(elimTimer);
-  elimTimer=setTimeout(()=>alert.classList.remove("show"),5200);
+  const a=$("elimAlert");if(!a)return;
+  const l=$("elimLogo"),n=$("elimTeam"),u=teamLogo(t);
+  l.innerHTML=u?`<img src="${esc(u)}">`:"";
+  n.textContent=teamName(t);
+  a.classList.remove("show");void a.offsetWidth;a.classList.add("show");
+  clearTimeout(elimTimer);elimTimer=setTimeout(()=>a.classList.remove("show"),5200);
 }
 function checkEliminations(c,events,b){
-  const matchKey=String(b?.match||"MATCH 1");
-  if(matchKey!==currentMatchKey){
-    currentMatchKey=matchKey;
-    knownEliminated=new Set();
-  }
-  const eliminated=getEliminatedTeams(c,events);
-  for(const t of eliminated){
-    const key=eliminationSignature(t,events,c);
-    if(!knownEliminated.has(key)){
-      knownEliminated.add(key);
-      showElimination(t);
-    }
+  const mk=String(b.match||"");
+  if(mk!==matchKey){matchKey=mk;shownElims.clear();}
+  for(const t of getEliminatedTeams(c,events)){
+    const key=elimKey(t,c,events);
+    if(!shownElims.has(key)){shownElims.add(key);showElimination(t);}
   }
 }
 
-/* ---------- LIVE LOOP ---------- */
-let running=false;
-let lastSig="";
-let firstLoad=true;
+/* ---------- POLLING + REALTIME FALLBACK ---------- */
+let busy=false;
+let first=true;
 async function tick(){
-  if(running)return;
-  running=true;
+  if(busy)return;
+  busy=true;
   try{
     let c=await getState();
-    if(typeof c === "string"){ try{ c=JSON.parse(c); }catch{} }
-    const eventsRaw=await getEvents();
-    const events=normalizeEvents(eventsRaw);
+    if(typeof c==="string"){try{c=JSON.parse(c)}catch{}}
+    const events=normalizeEvents(await getEvents());
     const b=broadcast(c);
     $("matchTitle").textContent=b.match;
     $("groupTitle").textContent=b.group;
+    $("dayTop").textContent=b.day;
     $("mapTop").textContent=b.map;
     $("mapMini").textContent=b.map;
-    $("dayTop").textContent=b.day;
     checkEliminations(c,events,b);
     renderFeed(c,events);
     renderTable(c,events);
-    const sig=sortedEvents(events).slice(0,8).map(eventKey).join("|")+"|"+JSON.stringify(b);
-    if(sig!==lastSig){lastSig=sig;document.title=`LIVE • ${b.match} • Senpai Esports`;}
-    $("status").textContent="LIVE SYNC";
     $("loading").style.display="none";
-    firstLoad=false;
-  }catch(err){
-    console.error("LIVE OVERLAY ERROR:",err);
-    $("status").textContent="LIVE DATA CONNECTION ERROR • RETRYING…";
-  }finally{running=false;}
+    first=false;
+  }catch(e){
+    console.error("OVERLAY LIVE ERROR",e);
+  }finally{busy=false;}
 }
+
+/* Supabase realtime wakes the overlay instantly when the event table changes.
+   Polling remains active so the overlay still works even if realtime is unavailable. */
+try{
+  sb.channel("bgmi-overlay-live")
+    .on("postgres_changes",{event:"*",schema:"public",table:"killfeed_events"},()=>tick())
+    .subscribe();
+}catch(e){console.warn("Realtime unavailable; polling continues",e)}
+
 tick();
 setInterval(tick,POLL_MS);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden) tick(); });
-window.addEventListener("focus",()=>tick());
-window.addEventListener("storage",()=>tick());
+window.addEventListener("focus",tick);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});
 </script></body></html>
