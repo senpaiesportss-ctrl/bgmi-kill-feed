@@ -133,23 +133,38 @@ function getKillCounts(c,events){
   for(const e of sortedEvents(events)){const t=findTeam(c,eventKiller(e));if(!t)continue;const k=teamName(t);counts[k]=(counts[k]||0)+1}
   return counts;
 }
+let deadSeen={};
+try{deadSeen=JSON.parse(localStorage.getItem("kf_dead_seen_"+ROOM)||"{}")||{}}catch{}
+function saveDeadSeen(){try{localStorage.setItem("kf_dead_seen_"+ROOM,JSON.stringify(deadSeen))}catch{}}
+function normName(v){return String(v??"").trim().toLowerCase().replace(/\s+/g," ")}
+function rosterMatch(c,player){
+  const p=normName(player); if(!p)return null;
+  for(const t of teamsFromConfig(c)){
+    const names=teamPlayers(t).map(normName).filter(Boolean);
+    if(names.includes(p)) return t;
+  }
+  for(const t of teamsFromConfig(c)){
+    const names=teamPlayers(t).map(normName).filter(Boolean);
+    if(names.some(n=>n===p||n.includes(p)||p.includes(n))) return t;
+  }
+  return null;
+}
 function getEliminatedTeams(c,events){
   const teams=teamsFromConfig(c);
   const deadByTeam=new Map();
-  teams.forEach(t=>deadByTeam.set(teamName(t),new Set()));
+  teams.forEach(t=>deadByTeam.set(normName(teamName(t)),new Set(deadSeen[normName(teamName(t))]||[])));
 
   // Count victims by matching the victim IGN directly against each team's
   // roster. This is deliberately independent of findTeam(), so elimination
   // still works even if an OCR name contains extra spaces/case differences.
   for(const e of sortedEvents(events)){
-    const victim=String(eventVictim(e)||"").trim().toLowerCase();
+    const victim=normName(eventVictim(e));
     if(!victim)continue;
-    for(const t of teams){
-      const roster=teamPlayers(t).map(x=>String(x).trim().toLowerCase()).filter(Boolean);
-      if(roster.includes(victim)){
-        deadByTeam.get(teamName(t))?.add(victim);
-        break;
-      }
+    const t=rosterMatch(c,victim);
+    if(t){
+      const key=normName(teamName(t));
+      if(!deadByTeam.has(key)) deadByTeam.set(key,new Set());
+      deadByTeam.get(key).add(victim);
     }
   }
 
@@ -157,9 +172,11 @@ function getEliminatedTeams(c,events){
     const configured=t?.eliminated===true ||
       String(t?.status||"").toUpperCase()==="ELIMINATED" ||
       configuredAlive(t)===0;
-    const dead=deadByTeam.get(teamName(t));
+    const dead=deadByTeam.get(normName(teamName(t)));
+    if(dead) deadSeen[normName(teamName(t))]=[...dead];
     return configured || !!(dead && dead.size>=4);
   });
+  saveDeadSeen();
 
   // Admin TEST ELIMINATION also sends a short-lived cloud flag.
   const test=c?.test_elimination;
