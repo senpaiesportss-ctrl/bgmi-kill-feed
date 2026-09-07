@@ -11,7 +11,39 @@
 <script>
 let cfg={teams:[]};const $=x=>document.getElementById(x);function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 async function login(){let r=$("roomInput").value.trim();localStorage.setItem("kf_room",r);try{cfg=await getState();$("login").classList.add("hide");$("app").classList.remove("hide");load()}catch(e){localStorage.removeItem("kf_room");$("err").textContent="Invalid room code / Supabase config."}}
-async function boot(){if(localStorage.getItem("kf_room"))try{cfg=await getState();$("login").classList.add("hide");$("app").classList.remove("hide");load()}catch(e){}}function load(){$("l").value=cfg.capture_region?.left??105;$("t").value=cfg.capture_region?.top??220;$("w").value=cfg.capture_region?.width??420;$("h").value=cfg.capture_region?.height??45;$("url").textContent=location.origin+"/overlay.html";render()}
+async function boot(){
+  const r=localStorage.getItem("kf_room");
+
+  if(!r){
+    console.log("No room saved");
+    return;
+  }
+
+  try{
+    cfg=await getState();
+
+    if(!cfg){
+      alert("Cloud se config nahi mili.");
+      return;
+    }
+
+    $("login").classList.add("hide");
+    $("app").classList.remove("hide");
+    load();
+
+    alert(
+      "CLOUD STATE LOADED ✅\n\n"+
+      "Teams: "+((cfg.teams||[]).length)+"\n"+
+      "Capture: "+JSON.stringify(cfg.capture_region||{})
+    );
+
+  }catch(e){
+    alert(
+      "CLOUD ERROR ❌\n\n"+
+      (e.message||e)
+    );
+  }
+}
 function render(){let d=$("teams");d.innerHTML="";(cfg.teams||[]).forEach((t,i)=>{let e=document.createElement("div");e.className="team";e.innerHTML=`<div class=head><div>${t.logo?`<img class=logo src="${t.logo}">`:`<div class=logo></div>`}</div><div class=teamname><div class=num>Team ${i+1}</div><input class=tn value="${esc(t.name||"")}"></div><button class=btn onclick="logo(${i})">Logo</button></div><div class=players>${(t.players||[]).map(p=>`<div class=prow><input class=pn value="${esc(p)}"><button class="btn red" onclick="this.parentElement.remove()">×</button></div>`).join("")}</div><div class=actions><button class=btn onclick="player(${i})">＋ Player</button><button class="btn red" onclick="cfg.teams.splice(${i},1);render()">Remove</button></div>`;d.appendChild(e)})}
 function addTeam(){cfg.teams.push({name:"NEW TEAM",players:["Player 1"],logo:""});render()}function player(i){cfg.teams[i].players.push("Player "+(cfg.teams[i].players.length+1));render()}
 function sync(){document.querySelectorAll(".team").forEach((e,i)=>{cfg.teams[i].name=e.querySelector(".tn").value;cfg.teams[i].players=[...e.querySelectorAll(".pn")].map(x=>x.value.trim()).filter(Boolean)})}
