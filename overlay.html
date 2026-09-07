@@ -733,7 +733,13 @@ document.getElementById('remaining').textContent=
 
 document.getElementById('map').textContent=
 c.map||'ERANGEL';
+const b = c.broadcast || {};
 
+document.getElementById('matchTitle').textContent =
+  b.match || 'MATCH 1';
+
+document.getElementById('groupTitle').textContent =
+  b.group || 'GROUP A × B';
 }catch(e){
 
 console.log('overlay',e);
