@@ -497,6 +497,12 @@ async function testElimination(){
       throw new Error("Elimination test ke liye victim team me 4 players hone chahiye.");
     }
 
+    // Cloud test flag: overlay can show the elimination banner instantly.
+    cfg.test_elimination={
+      team:victimTeam.team.name,
+      nonce:Date.now(),
+      expires_at:Date.now()+12000
+    };
     await setState(cfg);
 
     for(let i=0;i<4;i++){
@@ -506,6 +512,10 @@ async function testElimination(){
         "GUN"
       );
     }
+
+    // Keep the flag fresh for the overlay while the four test events arrive.
+    cfg.test_elimination.expires_at=Date.now()+12000;
+    await setState(cfg);
 
     $("status").textContent=
       "TEST ELIMINATION SENT ✅ | "+
