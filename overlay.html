@@ -1,3 +1,751 @@
-<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0;background:transparent;overflow:hidden;font-family:Arial;color:#fff}#feed{position:absolute;left:35px;top:35px;width:760px;display:flex;flex-direction:column;gap:10px}.row{height:72px;display:flex;align-items:center;background:linear-gradient(90deg,#05080df7,#121720f0 72%,#05080dc0);border:1px solid #ffffff20;border-left:4px solid #f5c542;border-radius:4px;animation:in .22s ease-out;box-shadow:0 9px 28px #0007}.logo{width:54px;height:54px;margin:7px 11px 7px 8px;border-radius:8px;object-fit:contain;background:#080c11;border:1px solid #ffffff1a}.name,.victim{font-size:21px;font-weight:900;white-space:nowrap;text-shadow:0 2px 4px #000}.name{min-width:235px;text-align:right}.victim{min-width:235px}.gun{font-size:25px;margin:0 16px}@keyframes in{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}</style><div id=feed></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="supabase.js"></script><script>
-let shown=new Map();async function tick(){try{let [c,all]=await Promise.all([getState(),getEvents()]),hold=+(c.event_hold_seconds||4),now=Date.now(),r={};(c.teams||[]).forEach(t=>(t.players||[]).forEach(p=>r[p.toLowerCase()]={logo:t.logo||""}));for(let [id,el] of shown){let e=all.find(x=>x.id===id);if(!e||now-Date.parse(e.time)>hold*1000){el.remove();shown.delete(id)}}all.slice(-5).forEach(e=>{let id=e.id;if(shown.has(id)||now-Date.parse(e.time)>hold*1000)return;let a=r[(e.killer||"").toLowerCase()]||{},b=r[(e.victim||"").toLowerCase()]||{},x=document.createElement("div");x.className="row";x.innerHTML=`<img class=logo src="${a.logo}" onerror="this.style.visibility='hidden'"><div class=name>${esc(e.killer)}</div><div class=gun>${e.weapon||"🔫"}</div><div class=victim>${esc(e.victim)}</div><img class=logo src="${b.logo}" onerror="this.style.visibility='hidden'">`;feed.prepend(x);shown.set(id,x);setTimeout(()=>{if(shown.get(id)===x){x.style.animation="none";x.style.opacity=0;x.style.transition="opacity .28s";setTimeout(()=>x.remove(),280);shown.delete(id)}},hold*1000)})}catch(e){}}function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}tick();setInterval(tick,700);
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BGMI Pro Broadcast Overlay</title>
+
+<style>
+:root{
+--gold:#ffd447;
+--violet:#8b5cff;
+--cyan:#4de8ff;
+--red:#ff425d;
+--panel:rgba(7,10,16,.94);
+}
+
+*{box-sizing:border-box}
+
+html,body{
+margin:0;
+width:100%;
+height:100%;
+overflow:hidden;
+background:transparent;
+font-family:Inter,Segoe UI,Arial,sans-serif;
+color:#fff
+}
+
+#stage{
+position:relative;
+width:1920px;
+height:1080px;
+transform-origin:top left
+}
+
+@media(max-width:1920px){
+#stage{transform:scale(calc(100vw / 1920))}
+}
+
+@media(max-height:1080px){
+#stage{
+transform:scale(min(calc(100vw / 1920),calc(100vh / 1080)))
+}
+}
+
+/* TOP */
+
+.topbar{
+position:absolute;
+left:28px;
+top:24px;
+height:68px;
+display:flex;
+align-items:center;
+background:linear-gradient(90deg,#05070c,#0d1119,transparent);
+border:1px solid #ffffff20;
+padding:0 34px 0 18px;
+min-width:585px;
+clip-path:polygon(0 0,96% 0,100% 50%,96% 100%,0 100%);
+box-shadow:0 10px 30px #0008
+}
+
+.live{
+font-weight:1000;
+font-size:22px;
+background:#e9283f;
+padding:9px 17px;
+margin-right:17px
+}
+
+.match{
+font-size:24px;
+font-weight:900
+}
+
+.gold{color:var(--gold)}
+
+/* KILL FEED */
+
+.feedWrap{
+position:absolute;
+left:36px;
+top:125px;
+width:735px
+}
+
+.sectionTitle{
+font-size:18px;
+font-weight:1000;
+letter-spacing:1.5px;
+text-transform:uppercase;
+margin-bottom:10px
+}
+
+.sectionTitle:after{
+content:"";
+display:inline-block;
+height:2px;
+width:420px;
+margin-left:12px;
+vertical-align:middle;
+background:linear-gradient(90deg,var(--gold),transparent)
+}
+
+.feed{
+display:flex;
+flex-direction:column;
+gap:8px
+}
+
+.kill{
+position:relative;
+height:69px;
+display:grid;
+grid-template-columns:62px 1fr 84px 1fr 62px;
+align-items:center;
+
+background:linear-gradient(
+90deg,
+rgba(4,7,12,.97),
+rgba(12,16,24,.94),
+rgba(4,7,12,.96)
+);
+
+border:1px solid #ffffff20;
+border-left:3px solid var(--accent,#ffd447);
+
+box-shadow:0 8px 24px #0009;
+overflow:hidden;
+
+animation:enter .3s ease-out
+}
+
+.klogo{
+width:48px;
+height:48px;
+object-fit:contain;
+border-radius:8px;
+margin:auto;
+background:#080b10;
+border:1px solid #ffffff16
+}
+
+.killer,.victim{
+font-size:18px;
+font-weight:950;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+padding:0 8px
+}
+
+.killer{text-align:right}
+.victim{text-align:left}
+
+.weapon{
+height:38px;
+display:grid;
+place-items:center;
+font-size:25px;
+border-left:1px solid #ffffff12;
+border-right:1px solid #ffffff12
+}
+
+.time{
+position:absolute;
+right:8px;
+bottom:4px;
+font-size:9px;
+color:#aeb8c7
+}
+
+/* POINTS TABLE */
+
+.points{
+position:absolute;
+right:35px;
+top:128px;
+width:520px;
+
+background:linear-gradient(
+180deg,
+rgba(4,7,12,.97),
+rgba(7,10,16,.92)
+);
+
+border:1px solid #ffffff24;
+box-shadow:0 14px 42px #000b;
+overflow:hidden
+}
+
+.ptHead{
+height:58px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:0 20px;
+background:linear-gradient(90deg,#0b0e15,#17131f,#0b0e15);
+border-bottom:1px solid #ffffff18
+}
+
+.ptTitle{
+font-size:22px;
+font-weight:1000
+}
+
+.liveDot{
+font-size:12px;
+font-weight:900;
+color:#ff5268
+}
+
+.liveDot i{
+display:inline-block;
+width:8px;
+height:8px;
+background:#ff334d;
+border-radius:50%;
+margin-right:6px
+}
+
+.ptCols,.teamRow{
+display:grid;
+grid-template-columns:42px 1fr 62px 70px 85px 46px;
+align-items:center
+}
+
+.ptCols{
+height:34px;
+color:#aeb6c4;
+font-size:10px;
+font-weight:900;
+border-bottom:1px solid #ffffff10
+}
+
+.teamRow{
+height:49px;
+border-bottom:1px solid #ffffff0e;
+font-size:15px;
+font-weight:850
+}
+
+.teamRow.top{
+background:linear-gradient(
+90deg,
+rgba(255,212,71,.22),
+rgba(255,212,71,.04)
+)
+}
+
+.teamCell{
+display:flex;
+align-items:center;
+gap:9px;
+min-width:0
+}
+
+.teamLogo{
+width:30px;
+height:30px;
+object-fit:contain;
+border-radius:6px;
+background:#080b10
+}
+
+.teamName{
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis
+}
+
+.pts{
+font-size:18px;
+font-weight:1000
+}
+
+.bars{
+display:flex;
+justify-content:center;
+gap:3px
+}
+
+.bar{
+width:5px;
+height:18px;
+background:#5f31d8;
+box-shadow:0 0 8px #6b3df0
+}
+
+.bar.off{
+opacity:.18;
+box-shadow:none
+}
+
+/* FOOTER */
+
+.footer{
+position:absolute;
+left:35px;
+right:35px;
+bottom:28px;
+height:72px;
+
+display:flex;
+align-items:stretch;
+
+background:linear-gradient(
+90deg,
+rgba(5,7,12,.98),
+rgba(9,11,18,.94),
+rgba(5,7,12,.98)
+);
+
+border:1px solid #ffffff13;
+box-shadow:0 -8px 35px #0008
+}
+
+.footBrand{
+width:290px;
+padding:9px 18px;
+border-right:1px solid #ffffff12
+}
+
+.footBrand b{
+display:block;
+font-size:14px;
+color:#b8a7ff
+}
+
+.footBrand strong{
+display:block;
+font-size:28px
+}
+
+.stats{
+flex:1;
+display:grid;
+grid-template-columns:repeat(5,1fr)
+}
+
+.stat{
+display:flex;
+align-items:center;
+justify-content:center;
+gap:12px;
+border-right:1px solid #ffffff10
+}
+
+.ico{
+font-size:24px;
+color:var(--violet)
+}
+
+.stat small{
+display:block;
+color:#9da7b5;
+font-size:9px;
+font-weight:900;
+text-transform:uppercase
+}
+
+.stat b{
+display:block;
+font-size:19px
+}
+
+.status{
+width:190px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:11px;
+color:#aeb7c5
+}
+
+.status span{
+width:8px;
+height:8px;
+border-radius:50%;
+background:#36e38a;
+box-shadow:0 0 10px #36e38a;
+margin-right:7px
+}
+
+@keyframes enter{
+from{
+opacity:0;
+transform:translateX(-40px);
+filter:blur(3px)
+}
+to{
+opacity:1;
+transform:none;
+filter:none
+}
+}
+</style>
+</head>
+
+<body>
+
+<div id="stage">
+
+<div class="topbar">
+<div class="live">LIVE</div>
+<div class="match">
+MATCH 6 <span> | </span>
+<span class="gold">GROUP A × B</span>
+</div>
+</div>
+
+<section class="feedWrap">
+<div class="sectionTitle">KILL FEED</div>
+<div id="feed" class="feed"></div>
+</section>
+
+<section class="points">
+
+<div class="ptHead">
+<div class="ptTitle">
+LIVE <span class="gold">POINTS TABLE</span>
+</div>
+
+<div class="liveDot">
+<i></i> LIVE
+</div>
+</div>
+
+<div class="ptCols">
+<span>#</span>
+<span>TEAM</span>
+<span>FIN.</span>
+<span>KILLS</span>
+<span>TOTAL PTS.</span>
+<span></span>
+</div>
+
+<div id="table"></div>
+
+</section>
+
+<footer class="footer">
+
+<div class="footBrand">
+<b>BGMI ESPORTS</b>
+<strong>TOURNAMENT</strong>
+</div>
+
+<div class="stats">
+
+<div class="stat">
+<div class="ico">♟</div>
+<div>
+<small>Remaining</small>
+<b id="remaining">16 Teams</b>
+</div>
+</div>
+
+<div class="stat">
+<div class="ico">⚔</div>
+<div>
+<small>Finishes</small>
+<b id="finishes">0</b>
+</div>
+</div>
+
+<div class="stat">
+<div class="ico">◈</div>
+<div>
+<small>Day</small>
+<b>DAY 1</b>
+</div>
+</div>
+
+<div class="stat">
+<div class="ico">◷</div>
+<div>
+<small>Time</small>
+<b id="mtime">00:00</b>
+</div>
+</div>
+
+<div class="stat">
+<div class="ico">⌖</div>
+<div>
+<small>Map</small>
+<b id="map">ERANGEL</b>
+</div>
+</div>
+
+</div>
+
+<div class="status">
+<span></span>
+CLOUD CONNECTED
+</div>
+
+</footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+
+<script>
+
+let shown=new Map();
+
+function esc(s){
+return String(s??'').replace(/[&<>"']/g,m=>({
+'&':'&amp;',
+'<':'&lt;',
+'>':'&gt;',
+'"':'&quot;',
+"'":'&#039;'
+}[m]));
+}
+
+const teamColor=i=>[
+'#ffd447',
+'#8b5cff',
+'#4de8ff',
+'#ff6b35',
+'#ff425d',
+'#36e38a'
+][i%6];
+
+function teamOf(name,c){
+
+let n=String(name||'').toLowerCase();
+
+return (c.teams||[]).find(t=>
+(t.players||[]).some(p=>
+String(p).toLowerCase()===n
+));
+
+}
+
+function renderFeed(c,events){
+
+const box=document.getElementById('feed');
+
+const by=new Map();
+
+(c.teams||[]).forEach((t,i)=>
+(t.players||[]).forEach(p=>
+by.set(String(p).toLowerCase(),{
+...t,
+idx:i
+})
+));
+
+const live=events.slice(-5);
+
+for(const e of live){
+
+if(shown.has(e.id))continue;
+
+const a=by.get(
+String(e.killer||'').toLowerCase()
+)||{};
+
+const b=by.get(
+String(e.victim||'').toLowerCase()
+)||{};
+
+const el=document.createElement('div');
+
+el.className='kill';
+
+el.style.setProperty(
+'--accent',
+teamColor(a.idx||0)
+);
+
+el.innerHTML=`
+
+<img class="klogo"
+src="${a.logo||''}"
+onerror="this.style.visibility='hidden'">
+
+<div class="killer">
+${esc(e.killer)}
+</div>
+
+<div class="weapon">
+${e.weapon?esc(e.weapon):'◈'}
+</div>
+
+<div class="victim">
+${esc(e.victim)}
+</div>
+
+<img class="klogo"
+src="${b.logo||''}"
+onerror="this.style.visibility='hidden'">
+
+<div class="time">
+${new Date(e.time).toLocaleTimeString([],{
+hour:'2-digit',
+minute:'2-digit',
+second:'2-digit'
+})}
+</div>
+`;
+
+box.prepend(el);
+
+shown.set(e.id,el);
+
+setTimeout(()=>{
+
+if(shown.get(e.id)===el){
+
+el.style.opacity='0';
+el.style.transform='translateX(-25px)';
+
+setTimeout(()=>{
+el.remove();
+shown.delete(e.id)
+},350);
+
+}
+
+},6000);
+
+}
+
+}
+
+function renderTable(c,events){
+
+let stats=new Map();
+
+(c.teams||[]).forEach((t,i)=>{
+
+stats.set(t.name,{
+...t,
+idx:i,
+kills:0,
+fin:+(t.placement_points||t.fin||0),
+points:+(t.points||0)
+});
+
+});
+
+for(const e of events){
+
+const t=teamOf(e.killer,c);
+
+if(t&&stats.has(t.name))
+stats.get(t.name).kills++;
+
+}
+
+let rows=[...stats.values()].map(t=>({
+
+...t,
+
+points:(t.points||0)+t.kills
+
+}));
+
+rows.sort((a,b)=>
+b.points-a.points ||
+b.kills-a.kills
+);
+
+document.getElementById('table').innerHTML=
+
+rows.slice(0,13).map((t,i)=>`
+
+<div class="teamRow ${i===0?'top':''}">
+
+<div>${i+1}</div>
+
+<div class="teamCell">
+
+<img class="teamLogo"
+src="${t.logo||''}"
+onerror="this.style.visibility='hidden'">
+
+<div class="teamName">
+${esc(t.name)}
+</div>
+
+</div>
+
+<div>${esc(t.fin)}</div>
+
+<div>${t.kills}</div>
+
+<div class="pts">${t.points}</div>
+
+<div class="bars">
+
+${[0,1,2,3].map(j=>`
+
+<i class="bar ${
+j>=Math.min(4,Math.ceil(t.points/20))
+?'off':''
+}"></i>
+
+`).join('')}
+
+</div>
+
+</div>
+
+`).join('');
+
+document.getElementById('finishes').textContent=
+events.length;
+
+}
+
+async function tick(){
+
+try{
+
+const [c,events]=await Promise.all([
+getState(),
+getEvents()
+]);
+
+renderFeed(c,events);
+renderTable(c,events);
+
+document.getElementById('remaining').textContent=
+(c.remaining_teams??c.teams?.length??0)+' Teams';
+
+document.getElementById('map').textContent=
+c.map||'ERANGEL';
+
+}catch(e){
+
+console.log('overlay',e);
+
+}
+
+}
+
+tick();
+
+setInterval(tick,700);
+
 </script>
+
+</body>
+</html>
