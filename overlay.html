@@ -139,11 +139,21 @@ function getEliminatedTeams(c,events){
     const t=findTeam(c,v); if(!t)continue;
     victims.get(teamName(t))?.add(v.toLowerCase());
   }
-  return teams.filter(t=>{
+  const out=teams.filter(t=>{
     const configured=t?.eliminated===true||String(t?.status||"").toUpperCase()==="ELIMINATED"||configuredAlive(t)===0;
     const dead=victims.get(teamName(t));
     return configured||!!(dead&&dead.size>=4);
   });
+
+  // Admin TEST ELIMINATION sends a short-lived cloud flag so the banner
+  // appears immediately even if the event RPC is a little behind.
+  const test=c?.test_elimination;
+  if(test && Number(test.expires_at||0)>Date.now()){
+    const wanted=String(test.team||"").trim().toLowerCase();
+    const hit=teams.find(t=>teamName(t).trim().toLowerCase()===wanted);
+    if(hit && !out.some(t=>teamName(t)===teamName(hit))) out.push(hit);
+  }
+  return out;
 }
 
 /* ---------- KILL FEED ---------- */
