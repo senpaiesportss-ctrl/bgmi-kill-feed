@@ -629,7 +629,23 @@ async function save(){
   }
 
 }
+async function saveBroadcast(){
+  cfg.broadcast = {
+    tournament: $("bTournament").value.trim(),
+    match: $("bMatch").value.trim(),
+    group: $("bGroup").value.trim(),
+    day: $("bDay").value.trim(),
+    map: $("bMap").value.trim(),
+    remaining: +$("bRemaining").value || 0
+  };
 
+  try{
+    await setState(cfg);
+    alert("Broadcast Settings Saved ✅");
+  }catch(e){
+    alert("BROADCAST SAVE ERROR ❌\n" + (e.message || e));
+  }
+}
 
 /* SAVE CAPTURE REGION */
 
