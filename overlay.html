@@ -1,233 +1,26 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=1920,height=1080">
-<title>Senpai Esports • BGMI Elite Broadcast</title>
-<script src="/config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1920,height=1080"><title>Senpai Esports • BGMI Broadcast</title><script src="/config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,Helvetica,sans-serif;color:#fff}
 #stage{position:relative;width:1920px;height:1080px;transform-origin:top left}
 @media(max-width:1920px){#stage{transform:scale(calc(100vw / 1920))}}
 @media(max-height:1080px){#stage{transform:scale(min(calc(100vw / 1920),calc(100vh / 1080)))}}
-
-:root{
- --bg:#030813;--panel:rgba(4,12,27,.94);--panel2:rgba(6,19,40,.96);
- --blue:#087dff;--cyan:#22cfff;--gold:#ffd42a;--white:#f5f8ff;
- --muted:#7892b5;--red:#ff3048;--green:#2be58a;
-}
-*{text-rendering:geometricPrecision}
-.glass{
- background:linear-gradient(135deg,rgba(3,10,23,.97),rgba(6,22,47,.92) 55%,rgba(2,9,20,.97));
- border:1px solid rgba(38,171,255,.48);
- box-shadow:0 14px 45px rgba(0,0,0,.55),0 0 24px rgba(0,130,255,.12),inset 0 0 30px rgba(0,120,255,.04);
-}
-.glass:before{
- content:"";position:absolute;left:0;right:0;top:-1px;height:2px;
- background:linear-gradient(90deg,transparent,#0caeff,#fff,#0caeff,transparent);
- box-shadow:0 0 13px #00aeff;
-}
-.glass:after{
- content:"";position:absolute;right:10px;top:9px;width:62px;height:8px;
- background:repeating-linear-gradient(135deg,transparent 0 7px,#159dff 7px 12px,transparent 12px 18px);
- opacity:.8;
-}
-.gold{color:var(--gold)!important}
-#scanlines{
- position:absolute;inset:0;pointer-events:none;opacity:.035;
- background:repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 5px);
-}
-#watermark{position:absolute;right:42px;top:31px;color:#6683a8;font-size:13px;font-weight:900;letter-spacing:3px;opacity:.7}
-
-/* HEADER */
-.header{
- position:absolute;left:34px;right:34px;top:26px;height:88px;
- display:grid;grid-template-columns:310px 1fr 310px;align-items:center;
- padding:0 18px;clip-path:polygon(0 0,97.8% 0,100% 50%,97.8% 100%,0 100%);
-}
-.liveBox{display:flex;align-items:center;gap:13px}
-.livePill{
- display:flex;align-items:center;gap:9px;padding:11px 18px;
- background:linear-gradient(180deg,#e3293d,#9f1020);
- border:1px solid #ff6b78;box-shadow:0 0 18px rgba(255,25,50,.25);
- font-weight:1000;font-size:18px;letter-spacing:2px;
-}
-.liveDot{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 11px #fff;animation:pulse 1.2s infinite}
-.hdrMeta{line-height:1.05}
-.hdrMatch{font-size:25px;font-weight:1000;letter-spacing:1px}
-.hdrGroup{font-size:13px;color:var(--gold);font-weight:900;letter-spacing:3px;margin-top:7px}
-.hdrCenter{text-align:center}
-.hdrCenter .eyebrow{font-size:11px;letter-spacing:5px;color:#6e8aaa;font-weight:900}
-.hdrCenter .brand{font-size:28px;font-weight:1000;letter-spacing:2px;margin-top:3px}
-.hdrCenter .brand span{color:var(--gold)}
-.hdrRight{text-align:right;padding-right:20px}
-.hdrRight .small{font-size:10px;color:#6985a8;letter-spacing:3px;font-weight:900}
-.hdrRight .value{font-size:21px;font-weight:1000;margin-top:5px}
-@keyframes pulse{50%{opacity:.45;transform:scale(.8)}}
-
-/* LEFT KILL FEED */
-.feedWrap{position:absolute;left:38px;top:132px;width:790px}
-.titleLine{display:flex;align-items:end;height:47px;margin-bottom:10px}
-.titleAccent{width:7px;height:32px;background:var(--gold);box-shadow:0 0 13px var(--gold);margin-right:13px}
-.titleLine h2{margin:0;font-size:25px;letter-spacing:4px;font-weight:1000}
-.titleLine .sub{margin-left:auto;color:#6582a8;font-size:11px;font-weight:900;letter-spacing:2px;padding-bottom:3px}
-#feed{display:flex;flex-direction:column;gap:7px}
-.feedWrap.feedHidden{display:none!important}
-.killrow{
- height:86px;display:grid;grid-template-columns:78px 1fr 76px 1fr 78px;
- align-items:center;padding:0 11px;position:relative;overflow:hidden;
- clip-path:polygon(0 0,98% 0,100% 50%,98% 100%,0 100%);
- animation:feedIn .24s ease both;
-}
-.killrow:first-child{border-color:rgba(255,213,42,.7);box-shadow:0 0 24px rgba(255,196,0,.12),inset 0 0 20px rgba(255,190,0,.04)}
-.killrow:after{
- content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cyan);box-shadow:0 0 12px var(--cyan);
-}
-.killrow:first-child:after{background:var(--gold);box-shadow:0 0 14px var(--gold)}
-.logoBox{width:58px;height:58px;margin:auto;display:grid;place-items:center}
-.logoBox img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 5px rgba(0,160,255,.3))}
-.kname{font-size:17px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pname{font-size:12px;color:#7895b8;font-weight:800;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.victim{text-align:right}
-.victim .pname{color:var(--gold)}
-.weaponBox{text-align:center}
-.weaponIcon{width:52px;height:52px;margin:auto;border:1px solid rgba(41,179,255,.35);display:grid;place-items:center;background:rgba(2,12,27,.8);color:#dff6ff;font-size:23px;box-shadow:inset 0 0 15px rgba(0,130,255,.08)}
-.weaponLabel{font-size:8px;color:#6281a7;letter-spacing:1px;margin-top:3px;font-weight:900}
-.empty{height:86px;display:grid;place-items:center;color:#506b8d;letter-spacing:3px;font-weight:900;border:1px dashed rgba(50,140,220,.3);background:rgba(3,9,20,.5)}
-@keyframes feedIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
-
-/* POINTS TABLE */
-.points{position:absolute;right:38px;top:132px;width:1030px;height:790px;padding:17px 18px 14px;overflow:hidden}
-.pointsHead{height:67px;display:flex;align-items:center;border-bottom:1px solid rgba(37,161,239,.3);position:relative}
-.pointsHead .title{font-size:27px;font-weight:1000;letter-spacing:2px}
-.pointsHead .subtitle{font-size:10px;color:#6683a8;letter-spacing:3px;font-weight:900;margin-top:5px}
-.liveTag{margin-left:auto;padding:8px 13px;border:1px solid rgba(255,48,72,.4);color:#ff6b78;font-size:12px;font-weight:1000;letter-spacing:2px;background:rgba(100,10,22,.25)}
-.liveTag i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 9px var(--red);margin-right:7px}
-.columns,.prow{display:grid;grid-template-columns:66px 1fr 115px 115px 125px 130px;align-items:center}
-.columns{height:39px;color:#6483a8;font-size:11px;font-weight:1000;letter-spacing:2px;border-bottom:1px solid rgba(255,255,255,.08)}
-.prow{
- height:51px;margin:3px 0;padding:0 10px;position:relative;
- background:linear-gradient(90deg,rgba(9,25,48,.95),rgba(5,14,29,.84));
- border:1px solid rgba(69,151,220,.14);
- transition:.2s;
-}
-.prow:nth-child(1){height:58px;background:linear-gradient(90deg,rgba(86,66,7,.38),rgba(7,15,30,.94));border-color:rgba(255,211,42,.65);box-shadow:0 0 20px rgba(255,205,35,.08)}
-.prow:nth-child(2){border-color:rgba(220,231,245,.3)}
-.prow:nth-child(3){border-color:rgba(190,126,65,.3)}
-.rank{font-size:20px;font-weight:1000;text-align:center;color:#9bb1cb}
-.prow:nth-child(1) .rank{color:var(--gold);font-size:25px}
-.team{display:flex;align-items:center;gap:12px;min-width:0}
-.team img{width:38px;height:38px;object-fit:contain}
-.prow:nth-child(1) .team img{width:43px;height:43px}
-.team b{font-size:18px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.prow:nth-child(1) .team b{font-size:20px}
-.num{font-size:20px;font-weight:1000;text-align:center}
-.pts{font-size:23px;font-weight:1000;text-align:center;color:#fff}
-.status{font-size:10px;font-weight:1000;text-align:center;letter-spacing:1.5px;color:#89a3c3}
-.status.elim{color:#ff5365;text-shadow:0 0 9px rgba(255,60,80,.45)}
-.alive{display:flex;justify-content:center;gap:5px}
-.aliveDot{width:8px;height:25px;background:var(--green);box-shadow:0 0 8px rgba(43,229,138,.65)}
-.aliveDot.dead{background:#34465e;box-shadow:none}
-.rankMedal{font-size:11px;color:#7c96b8;display:block;margin-top:2px}
-.tableFoot{position:absolute;left:18px;right:18px;bottom:10px;display:flex;justify-content:space-between;color:#506b8d;font-size:9px;letter-spacing:1.5px;font-weight:900}
-
-/* ELIMINATION ALERT */
-.elimAlert{
-  position:absolute;left:50%;top:18px;transform:translate(-50%,-18px) scale(.96);
-  width:690px;height:82px;display:flex;align-items:center;gap:18px;
-  padding:0 24px;box-sizing:border-box;z-index:20;opacity:0;pointer-events:none;
-  background:linear-gradient(90deg,rgba(42,5,12,.98),rgba(110,8,24,.96),rgba(27,5,11,.98));
-  border:1px solid rgba(255,62,88,.85);
-  clip-path:polygon(0 0,97% 0,100% 50%,97% 100%,0 100%,3% 50%);
-  box-shadow:0 0 22px rgba(255,35,65,.45), inset 0 0 28px rgba(255,0,40,.12);
-  transition:opacity .22s ease,transform .22s ease;
-}
-.elimAlert.show{opacity:1;transform:translate(-50%,0) scale(1)}
-.elimAlert .eaLogo{
-  width:58px;height:58px;display:grid;place-items:center;overflow:hidden;
-  border:1px solid rgba(255,255,255,.55);background:#07090e;
-}
-.elimAlert .eaLogo img{width:100%;height:100%;object-fit:contain}
-.elimAlert .eaCopy{min-width:0;line-height:1}
-.elimAlert .eaTeam{
-  font-size:23px;font-weight:1000;letter-spacing:1.2px;text-transform:uppercase;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.elimAlert .eaText{
-  margin-top:7px;font-size:12px;font-weight:1000;letter-spacing:4px;color:#ff6378;
-}
-.elimAlert .eaLive{
-  margin-left:auto;font-size:10px;font-weight:1000;letter-spacing:2px;color:#ff9aaa;
-}
-
-/* loading */
-#status{display:none!important;visibility:hidden!important;width:0!important;height:0!important;overflow:hidden!important}
-#loading{position:absolute;inset:0;display:grid;place-items:center;color:#6f8dad;font-size:15px;letter-spacing:4px;font-weight:1000;background:rgba(0,0,0,.02);z-index:5}
-</style>
-</head>
-<body>
-<div id="stage">
-  <div id="scanlines"></div>
-  <div id="elimAlert" class="elimAlert">
-    <div class="eaLogo" id="elimLogo"></div>
-    <div class="eaCopy">
-      <div class="eaTeam" id="elimTeam">TEAM</div>
-      <div class="eaText">ELIMINATED</div>
-    </div>
-    <div class="eaLive">MATCH ELIMINATION</div>
-  </div>
-
-  <div id="watermark">SENPAI ESPORTS • OFFICIAL MATCH BROADCAST</div>
-
-  <header class="header glass">
-    <div class="liveBox">
-      <div class="livePill"><i class="liveDot"></i>LIVE</div>
-      <div class="hdrMeta">
-        <div class="hdrMatch" id="matchTitle">MATCH 1</div>
-        <div class="hdrGroup" id="groupTitle">GROUP A × B</div>
-      </div>
-    </div>
-    <div class="hdrCenter">
-      <div class="eyebrow">SENPAI ESPORTS PRESENTS</div>
-      <div class="brand">UNDERGODS <span>CHAMPIONSHIP</span></div>
-    </div>
-    <div class="hdrRight">
-      <div class="small">CURRENT MAP</div>
-      <div class="value gold" id="mapTop">ERANGEL</div>
-    </div>
-  </header>
-
-  <section class="feedWrap">
-    <div class="titleLine">
-      <div class="titleAccent"></div>
-      <h2>KILL FEED</h2>
-      <div class="sub">ELIMINATION LOG • LIVE</div>
-    </div>
-    <div id="feed"></div>
-  </section>
-
-  <section class="points glass">
-    <div class="pointsHead">
-      <div>
-        <div class="title">LIVE POINTS TABLE</div>
-        <div class="subtitle">BGMI TOURNAMENT STANDINGS • AUTO CALCULATED</div>
-      </div>
-      <div class="liveTag"><i></i>LIVE STANDINGS</div>
-    </div>
-    <div class="columns">
-      <div>RANK</div><div>TEAM</div><div>KILLS</div><div>TOTAL</div><div>STATUS</div><div>PLAYERS</div>
-    </div>
-    <div id="table"></div>
-    <div class="tableFoot">
-      <span>PLACEMENT + KILL POINTS • TIE BREAKER: KILLS</span>
-      <span id="tableMatch">MATCH 1 • ERANGEL</span>
-    </div>
-  </section>
-  <div id="loading">LOADING ELITE BROADCAST…</div>
-</div>
-
+:root{--gold:#ffd52b;--blue:#159dff;--deep:#061224;--muted:#7b96b8;--red:#ff3048}
+#watermark{display:none}
+/* EXACT COMPACT SCREENSHOT LAYOUT */
+.header{position:absolute;left:704px;top:104px;width:520px;height:56px;display:flex;align-items:center;padding:0 13px;gap:14px;background:linear-gradient(90deg,#061426,#0b1b32,#061426);border:1px solid rgba(21,157,255,.7);clip-path:polygon(4% 0,97% 0,100% 50%,97% 100%,4% 100%,0 50%);box-shadow:0 0 18px rgba(0,130,255,.16)}
+.header:before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:#159dff;box-shadow:0 0 9px #159dff}
+.header:after{content:"";position:absolute;right:10px;top:7px;width:38px;height:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,#159dff 6px 10px,transparent 10px 15px);opacity:.8}
+.liveBox{display:flex;align-items:center;gap:13px}.livePill{display:flex;align-items:center;gap:7px;padding:9px 16px;background:#c91525;border:1px solid #ff5666;font-size:17px;font-weight:1000;letter-spacing:1px}.liveDot{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 8px #fff}.hdrMeta{display:flex;align-items:center;gap:10px;line-height:1}.hdrMatch{font-size:19px;font-weight:1000;letter-spacing:.5px}.hdrGroup{font-size:12px;color:var(--gold);font-weight:1000;letter-spacing:2px}.hdrCenter{display:none}.hdrRight{margin-left:auto;display:flex;align-items:center;gap:8px;padding-right:18px}.hdrRight .small{font-size:8px;color:#7894b6;letter-spacing:1.5px;font-weight:900}.hdrRight .value{font-size:11px;font-weight:1000;color:var(--gold)}
+.feedWrap{position:absolute;left:48px;top:220px;width:900px;display:none}.titleLine{display:flex;align-items:end;height:38px;margin-bottom:8px}.titleAccent{width:6px;height:28px;background:var(--gold);box-shadow:0 0 10px var(--gold);margin-right:10px}.titleLine h2{margin:0;font-size:21px;letter-spacing:3px}.titleLine .sub{margin-left:auto;color:#6683a8;font-size:9px;letter-spacing:1.5px}.killrow{height:70px;display:grid;grid-template-columns:65px 1fr 58px 1fr 65px;align-items:center;padding:0 8px;background:linear-gradient(90deg,rgba(7,20,38,.96),rgba(5,13,27,.9));border:1px solid rgba(25,157,255,.35);clip-path:polygon(0 0,98% 0,100% 50%,98% 100%,0 100%)}.logoBox{width:48px;height:48px;margin:auto;display:grid;place-items:center}.logoBox img{width:100%;height:100%;object-fit:contain}.kname{font-size:14px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pname{font-size:10px;color:#7895b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.victim{text-align:right}.victim .pname{color:var(--gold)}.weaponBox{text-align:center}.weaponIcon{font-size:19px}.weaponLabel{font-size:7px;color:#6281a7;letter-spacing:1px;margin-top:2px}.feedHidden{display:none!important}
+.points{position:absolute;right:14px;top:210px;width:395px;height:740px;padding:12px 11px 10px;background:linear-gradient(135deg,rgba(4,14,29,.98),rgba(7,21,40,.96));border:1px solid rgba(24,161,255,.58);box-shadow:0 0 20px rgba(0,130,255,.13),0 10px 30px rgba(0,0,0,.35);overflow:hidden}.points:before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:#159dff;box-shadow:0 0 9px #159dff}.points:after{content:"";position:absolute;right:8px;top:8px;width:35px;height:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,#159dff 6px 10px,transparent 10px 15px)}.pointsHead{height:47px;display:flex;align-items:center;border-bottom:1px solid rgba(37,161,239,.35)}.pointsHead .title{font-size:19px;font-weight:1000;letter-spacing:1px}.pointsHead .subtitle{font-size:9px;color:#718caf;letter-spacing:1.3px;font-weight:900;margin-top:3px}.liveTag{margin-left:auto;color:#ff5261;font-size:9px;font-weight:1000;letter-spacing:1.5px}.liveTag i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff2638;box-shadow:0 0 8px #ff2638;margin-right:4px}.columns,.prow{display:grid;grid-template-columns:30px 1fr 54px 65px 55px;align-items:center}.columns{height:31px;color:#6c88aa;font-size:8px;font-weight:1000;letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,.08)}.prow{height:39px;margin:1px 0;padding:0 4px;background:linear-gradient(90deg,rgba(7,21,40,.96),rgba(4,13,27,.92));border:1px solid rgba(48,111,164,.18)}.prow.top{height:40px;border-color:rgba(255,213,43,.65);background:linear-gradient(90deg,rgba(74,58,9,.42),rgba(6,15,30,.95))}.rank{font-size:10px;font-weight:1000;text-align:center;color:#a9bdd6}.prow.top .rank{color:var(--gold)}.team{display:flex;align-items:center;gap:7px;min-width:0}.team img{width:27px;height:27px;object-fit:contain}.team b{font-size:9px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.num,.pts{font-size:10px;font-weight:1000;text-align:center}.pts{font-size:12px;color:var(--gold)}.tableFoot{display:none}.empty{height:100px;display:grid;place-items:center;color:#526d90;letter-spacing:2px;font-weight:900;border:1px dashed rgba(50,140,220,.25)}
+.elimAlert{position:absolute;left:50%;top:104px;transform:translate(-50%,-12px) scale(.96);width:500px;height:62px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:20;opacity:0;pointer-events:none;background:linear-gradient(90deg,rgba(42,5,12,.98),rgba(110,8,24,.96),rgba(27,5,11,.98));border:1px solid rgba(255,62,88,.85);clip-path:polygon(4% 0,97% 0,100% 50%,97% 100%,4% 100%,0 50%);box-shadow:0 0 22px rgba(255,35,65,.4);transition:.2s}.elimAlert.show{opacity:1;transform:translate(-50%,0) scale(1)}.elimAlert .eaLogo{width:42px;height:42px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.55);background:#07090e}.elimAlert .eaLogo img{width:100%;height:100%;object-fit:contain}.elimAlert .eaTeam{font-size:17px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}.elimAlert .eaText{margin-top:4px;font-size:9px;font-weight:1000;letter-spacing:3px;color:#ff6378}.elimAlert .eaLive{margin-left:auto;font-size:8px;font-weight:1000;letter-spacing:1.5px;color:#ff9aaa}
+#status{position:absolute;left:48px;bottom:34px;font-size:10px;color:#5d789b;letter-spacing:1.5px;font-weight:900}#loading{display:none!important}
+</style></head><body><div id="stage">
+<div id="elimAlert" class="elimAlert"><div class="eaLogo" id="elimLogo"></div><div><div class="eaTeam" id="elimTeam">TEAM</div><div class="eaText">ELIMINATED</div></div><div class="eaLive">MATCH ELIMINATION</div></div>
+<header class="header"><div class="liveBox"><div class="livePill"><i class="liveDot"></i>LIVE</div><div class="hdrMeta"><div class="hdrMatch" id="matchTitle">MATCH 1</div><div class="hdrGroup" id="groupTitle">GROUP A × B</div></div></div><div class="hdrRight"><div class="small" id="dayTop">DAY 1</div><div class="value" id="mapTop">ERANGEL</div></div></header>
+<section class="feedWrap"><div class="titleLine"><div class="titleAccent"></div><h2>KILL FEED</h2><div class="sub">ELIMINATION LOG • LIVE</div></div><div id="feed"></div></section>
+<section class="points"><div class="pointsHead"><div><div class="title">LIVE POINTS TABLE</div><div class="subtitle">BGMI • <span id="mapMini">ERANGEL</span></div></div><div class="liveTag"><i></i>LIVE</div></div><div class="columns"><div>#</div><div>TEAM</div><div>KILLS</div><div>PLACEMENT</div><div>TOTAL</div></div><div id="table"></div></section>
+<div id="status">LIVE SYNC • ROOM ADITYA8029 • AUTO UPDATE</div></div>
 <script>
 const CFG=window.KF_CONFIG||{};
 const SUPABASE_URL=CFG.SUPABASE_URL||"https://nuywberanlfvngjnjcpx.supabase.co";
@@ -286,7 +79,7 @@ function applyEvents(c,events){
 function broadcast(c){
   const b=c?.broadcast||{};
   return {
-    tournament:b.tournament||c?.tournament||"UNDERGODS CHAMPIONSHIP",
+    tournament:b.tournament||c?.tournament||"",
     match:b.match||c?.match||c?.match_name||"MATCH 1",
     group:b.group||c?.group||c?.group_name||"GROUP A × B",
     day:b.day||c?.day||"DAY 1",
@@ -401,19 +194,20 @@ function renderTable(c,events){
   const eliminated=new Set(getEliminatedTeams(c,events).map(teamName));
   const rows=teamsFromConfig(c).map((t,i)=>{
     const key=teamName(t);
-    const eventKills=counts[key]||0;
-    const configured=configuredKills(t);
-    const base=configuredPoints(t);
-    return {t,key,kills:configured+eventKills,pts:base!==null?base+eventKills:configured+eventKills,alive:eliminated.has(key)?0:configuredAlive(t),i};
-  }).sort((a,b)=>b.pts-a.pts||b.kills-a.kills||a.i-b.i).slice(0,16);
-  $("table").innerHTML=rows.map((r,i)=>{
-    const status=r.alive===0?"ELIMINATED":r.alive===null?"LIVE":"ALIVE";
-    let dots="";
-    if(r.alive===null)dots="—";
-    else for(let j=0;j<4;j++)dots+=`<span class="aliveDot ${j<Math.min(r.alive,4)?"":"dead"}"></span>`;
-    const medal=i===0?"◆":i===1?"◇":i===2?"◈":"";
-    return `<div class="prow"><div class="rank">${i+1}<span class="rankMedal">${medal}</span></div><div class="team">${teamLogo(r.t)?`<img src="${esc(teamLogo(r.t))}">`:""}<b>${esc(teamShort(r.t))}</b></div><div class="num">${r.kills}</div><div class="pts">${r.pts}</div><div class="status ${status==="ELIMINATED"?"elim":""}">${status}</div><div class="alive">${dots}</div></div>`;
-  }).join("")||'<div class="empty">NO TEAM DATA</div>';
+    const kills=configuredKills(t)+(counts[key]||0);
+    const rawPlacement=t?.placement??t?.placement_points??t?.placementPoints??t?.place_points??t?.position_points??0;
+    const placement=num(rawPlacement,0);
+    const configuredTotal=configuredPoints(t);
+    const total=configuredTotal!==null ? configuredTotal+(counts[key]||0) : placement+kills;
+    return {t,key,kills,placement,total,alive:eliminated.has(key)?0:configuredAlive(t),i};
+  }).sort((a,b)=>b.total-a.total||b.kills-a.kills||b.placement-a.placement||a.i-b.i).slice(0,16);
+  $("table").innerHTML=rows.map((r,i)=>`<div class="prow ${i===0?'top':''}">
+    <div class="rank">${i+1}</div>
+    <div class="team">${teamLogo(r.t)?`<img src="${esc(teamLogo(r.t))}">`:''}<b>${esc(teamName(r.t))}</b></div>
+    <div class="num">${r.kills}</div>
+    <div class="num">${r.placement}</div>
+    <div class="pts">${r.total}</div>
+  </div>`).join('') || '<div class="empty">NO TEAM DATA</div>';
 }
 
 /* ---------- ELIMINATION ---------- */
@@ -455,13 +249,10 @@ async function tick(){
     const events=normalizeEvents(eventsRaw);
     const b=broadcast(c);
     $("matchTitle").textContent=b.match;
-    $("matchBottom").textContent=b.match;
     $("groupTitle").textContent=b.group;
-    $("tournament").textContent=b.tournament;
     $("mapTop").textContent=b.map;
-    $("mapDay").textContent=`${b.map} • ${b.day}`;
-    $("remaining").textContent=`${b.remaining} TEAMS`;
-    $("tableMatch").textContent=`${b.match} • ${b.map}`;
+    $("mapMini").textContent=b.map;
+    $("dayTop").textContent=b.day;
     checkEliminations(c,events,b);
     renderFeed(c,events);
     renderTable(c,events);
@@ -478,6 +269,4 @@ async function tick(){
 tick();
 setInterval(tick,700);
 
-</script>
-</body>
-</html>
+</script></body></html>
