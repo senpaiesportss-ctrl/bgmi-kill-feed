@@ -1710,12 +1710,52 @@ function showElimination(t){
 }
 
 function checkEliminations(c, raw){
+
+  // TEST ELIMINATION is a direct cloud signal.
+  // Do NOT require the team roster lookup to succeed.
+  // This is what makes the Admin test banner reliable even if
+  // OCR/player-name matching is imperfect.
+  const test = c?.test_elimination;
+  if(
+    test &&
+    Number(test.expires_at || 0) > Date.now() &&
+    String(test.team || "").trim()
+  ){
+    const testName = String(test.team).trim();
+    const testKey = "__TEST_ELIM__|" + testName + "|" + String(test.nonce || "");
+
+    if(!eliminatedShown.has(testKey)){
+      const teams = teamsFromConfig(c);
+      const target = eliminationNorm(testName);
+
+      const testTeam =
+        teams.find(t => eliminationNorm(teamName(t)) === target) ||
+        teams.find(t => {
+          const n = eliminationNorm(teamName(t));
+          return n && target && (n.includes(target) || target.includes(n));
+        }) ||
+        {
+          name:testName,
+          short:testName,
+          logo:""
+        };
+
+      eliminatedShown.add(testKey);
+      showElimination(testTeam);
+    }
+  }
+
+  // REAL MATCH elimination: 4 unique victims.
   const eliminated = getEliminatedTeams(c, raw);
 
   for(const t of eliminated){
     const name = teamName(t);
-    if(eliminatedShown.has(name)) continue;
-    eliminatedShown.add(name);
+    const key = "__REAL_ELIM__|" + name;
+
+    if(eliminatedShown.has(key))
+      continue;
+
+    eliminatedShown.add(key);
     showElimination(t);
   }
 }
@@ -1842,6 +1882,20 @@ try{
     .subscribe();
 }catch(e){
   console.warn("Realtime trigger unavailable:", e);
+}
+
+try{
+  if("BroadcastChannel" in window){
+    const liveChannel = new BroadcastChannel("bgmi-kill-feed-live");
+    liveChannel.onmessage = () => update();
+  }
+
+  window.addEventListener("storage", e => {
+    if(e.key === "kf_live_ping")
+      update();
+  });
+}catch(e){
+  console.warn("Live trigger unavailable:", e);
 }
 </script>
 
