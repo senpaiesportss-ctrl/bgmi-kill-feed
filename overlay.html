@@ -1605,6 +1605,57 @@ const eliminatedShown =
 let elimTimer =
   null;
 
+function eliminationFindTeam(c, player){
+
+  const p =
+    String(player || "")
+      .trim()
+      .toLowerCase();
+
+  if(!p)
+    return null;
+
+  const teams =
+    teamsFromConfig(c);
+
+  // Exact roster match first.
+  for(const t of teams){
+    if(
+      teamPlayers(t).some(
+        x =>
+          String(x)
+            .trim()
+            .toLowerCase()
+          === p
+      )
+    )
+      return t;
+  }
+
+  // Normalized match for OCR punctuation/case/spacing differences.
+  const normalizePlayer = v =>
+    String(v || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g,"");
+
+  const np = normalizePlayer(player);
+
+  if(!np)
+    return null;
+
+  for(const t of teams){
+    if(
+      teamPlayers(t).some(
+        x => normalizePlayer(x) === np
+      )
+    )
+      return t;
+  }
+
+  return null;
+
+}
+
 function getEliminatedTeams(
   c,
   raw
@@ -1640,7 +1691,7 @@ function getEliminatedTeams(
         return;
 
       const victimTeam =
-        findTeam(
+        eliminationFindTeam(
           c,
           victim
         );
@@ -1772,6 +1823,19 @@ function checkEliminations(
 
     const name =
       teamName(t);
+
+    /*
+      LIVE ELIMINATION FIX
+      --------------------
+      Do not wait for a page refresh.
+
+      The overlay polls Supabase every 1 second. Whenever 4 unique
+      players from a team's roster are present as victims, the banner
+      is triggered immediately on that polling cycle.
+
+      We intentionally keep the existing eliminatedShown Set so the
+      same team's banner is not repeatedly triggered every second.
+    */
 
     if(
       eliminatedShown.has(name)
