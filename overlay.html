@@ -1,18 +1,9 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1920,height=1080"><title>Senpai Esports • BGMI Broadcast</title><script src="/config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,Helvetica,sans-serif;color:#fff;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-#stage{
-  position:relative;
-  width:1920px;
-  height:1080px;
-  transform:none;
-  transform-origin:top left;
-  backface-visibility:hidden;
-  -webkit-backface-visibility:hidden;
-  text-rendering:geometricPrecision;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,Helvetica,sans-serif;color:#fff}
+#stage{position:relative;width:1920px;height:1080px;transform-origin:top left}
+@media(max-width:1920px){#stage{transform:scale(calc(100vw / 1920))}}
+@media(max-height:1080px){#stage{transform:scale(min(calc(100vw / 1920),calc(100vh / 1080)))}}
 :root{--gold:#ffd52b;--blue:#159dff;--deep:#061224;--muted:#7b96b8;--red:#ff3048}
 #watermark{display:none}
 /* EXACT COMPACT SCREENSHOT LAYOUT */
@@ -22,8 +13,26 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 .liveBox{display:flex;align-items:center;gap:13px}.livePill{display:flex;align-items:center;gap:7px;padding:9px 16px;background:#c91525;border:1px solid #ff5666;font-size:17px;font-weight:1000;letter-spacing:1px}.liveDot{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 8px #fff}.hdrMeta{display:flex;align-items:center;gap:10px;line-height:1}.hdrMatch{font-size:19px;font-weight:1000;letter-spacing:.5px}.hdrGroup{font-size:12px;color:var(--gold);font-weight:1000;letter-spacing:2px}.hdrCenter{display:none}.hdrRight{margin-left:auto;display:flex;align-items:center;gap:8px;padding-right:18px}.hdrRight .small{font-size:8px;color:#7894b6;letter-spacing:1.5px;font-weight:900}.hdrRight .value{font-size:11px;font-weight:1000;color:var(--gold)}
 .feedWrap{position:absolute;left:48px;top:220px;width:900px;display:block}.titleLine{display:flex;align-items:end;height:38px;margin-bottom:8px}.titleAccent{width:6px;height:28px;background:var(--gold);box-shadow:0 0 10px var(--gold);margin-right:10px}.titleLine h2{margin:0;font-size:21px;letter-spacing:3px}.titleLine .sub{margin-left:auto;color:#6683a8;font-size:9px;letter-spacing:1.5px}.killrow{height:70px;display:grid;grid-template-columns:65px 1fr 58px 1fr 65px;align-items:center;padding:0 8px;background:linear-gradient(90deg,rgba(7,20,38,.96),rgba(5,13,27,.9));border:1px solid rgba(25,157,255,.35);clip-path:polygon(0 0,98% 0,100% 50%,98% 100%,0 100%)}.logoBox{width:48px;height:48px;margin:auto;display:grid;place-items:center}.logoBox img{width:100%;height:100%;object-fit:contain}.kname{font-size:14px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pname{font-size:10px;color:#7895b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.victim{text-align:right}.victim .pname{color:var(--gold)}.weaponBox{text-align:center}.weaponIcon{font-size:19px}.weaponLabel{font-size:7px;color:#6281a7;letter-spacing:1px;margin-top:2px}.feedHidden{display:none!important}
 .points{position:absolute;right:14px;top:210px;width:395px;height:740px;padding:12px 11px 10px;background:linear-gradient(135deg,rgba(4,14,29,.98),rgba(7,21,40,.96));border:1px solid rgba(24,161,255,.58);box-shadow:0 0 20px rgba(0,130,255,.13),0 10px 30px rgba(0,0,0,.35);overflow:hidden}.points:before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:#159dff;box-shadow:0 0 9px #159dff}.points:after{content:"";position:absolute;right:8px;top:8px;width:35px;height:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,#159dff 6px 10px,transparent 10px 15px)}.pointsHead{height:47px;display:flex;align-items:center;border-bottom:1px solid rgba(37,161,239,.35)}.pointsHead .title{font-size:19px;font-weight:1000;letter-spacing:1px}.pointsHead .subtitle{font-size:9px;color:#718caf;letter-spacing:1.3px;font-weight:900;margin-top:3px}.liveTag{margin-left:auto;color:#ff5261;font-size:9px;font-weight:1000;letter-spacing:1.5px}.liveTag i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff2638;box-shadow:0 0 8px #ff2638;margin-right:4px}.columns,.prow{display:grid;grid-template-columns:30px 1fr 54px 65px 55px;align-items:center}.columns{height:31px;color:#6c88aa;font-size:8px;font-weight:1000;letter-spacing:1px;border-bottom:1px solid rgba(255,255,255,.08)}.prow{height:39px;margin:1px 0;padding:0 4px;background:linear-gradient(90deg,rgba(7,21,40,.96),rgba(4,13,27,.92));border:1px solid rgba(48,111,164,.18)}.prow.top{height:40px;border-color:rgba(255,213,43,.65);background:linear-gradient(90deg,rgba(74,58,9,.42),rgba(6,15,30,.95))}.rank{font-size:10px;font-weight:1000;text-align:center;color:#a9bdd6}.prow.top .rank{color:var(--gold)}.team{display:flex;align-items:center;gap:7px;min-width:0}.team img{width:27px;height:27px;object-fit:contain}.team b{font-size:9px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.num,.pts{font-size:10px;font-weight:1000;text-align:center}.pts{font-size:12px;color:var(--gold)}.tableFoot{display:none}.empty{height:100px;display:grid;place-items:center;color:#526d90;letter-spacing:2px;font-weight:900;border:1px dashed rgba(50,140,220,.25)}
-.elimAlert{position:absolute;left:50%;top:104px;transform:translate(-50%,-12px) scale(.96);width:500px;height:62px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:20;opacity:0;pointer-events:none;background:linear-gradient(90deg,rgba(42,5,12,.98),rgba(110,8,24,.96),rgba(27,5,11,.98));border:1px solid rgba(255,62,88,.85);clip-path:polygon(4% 0,97% 0,100% 50%,97% 100%,4% 100%,0 50%);box-shadow:0 0 22px rgba(255,35,65,.4);transition:.2s}.elimAlert.show{opacity:1;transform:translate(-50%,0) scale(1)}.elimAlert .eaLogo{width:42px;height:42px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.55);background:#07090e}.elimAlert .eaLogo img{width:100%;height:100%;object-fit:contain}.elimAlert .eaTeam{font-size:17px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}.elimAlert .eaText{margin-top:4px;font-size:9px;font-weight:1000;letter-spacing:3px;color:#ff6378}.elimAlert .eaLive{margin-left:auto;font-size:8px;font-weight:1000;letter-spacing:1.5px;color:#ff9aaa}
+.elimAlert{position:absolute;left:50%;top:104px;transform:translate(-50%,-12px) scale(.96);width:500px;height:62px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:20;opacity:0;pointer-events:none;background:linear-gradient(90deg,rgba(42,5,12,.98),rgba(110,8,24,.96),rgba(27,5,11,.98));border:1px solid rgba(255,62,88,.85);clip-path:polygon(4% 0,97% 0,100% 50%,97% 100%,4% 100%,0 50%);box-shadow:0 0 22px rgba(255,35,65,.4);transition:.2s}.elimAlert.show{opacity:1;transform:translate(-50%,0) scale(1);display:flex!important;visibility:visible!important}.elimAlert .eaLogo{width:42px;height:42px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.55);background:#07090e}.elimAlert .eaLogo img{width:100%;height:100%;object-fit:contain}.elimAlert .eaTeam{font-size:17px;font-weight:1000;letter-spacing:1px;text-transform:uppercase}.elimAlert .eaText{margin-top:4px;font-size:9px;font-weight:1000;letter-spacing:3px;color:#ff6378}.elimAlert .eaLive{margin-left:auto;font-size:8px;font-weight:1000;letter-spacing:1.5px;color:#ff9aaa}
 #status{display:none!important}#loading{display:none!important}
+
+/* =========================================================
+   OBS / BROWSER SOURCE SHARPNESS
+   Rendering-only: no layout, color, content or logic changes.
+========================================================= */
+html,body{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:geometricPrecision;
+}
+
+#stage{
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  transform-origin:top left;
+  will-change:transform;
+}
+
 </style></head><body><div id="stage">
 <div id="elimAlert" class="elimAlert"><div class="eaLogo" id="elimLogo"></div><div><div class="eaTeam" id="elimTeam">TEAM</div><div class="eaText">ELIMINATED</div></div><div class="eaLive">MATCH ELIMINATION</div></div>
 <header class="header"><div class="liveBox"><div class="livePill"><i class="liveDot"></i>LIVE</div><div class="hdrMeta"><div class="hdrMatch" id="matchTitle">MATCH 1</div><div class="hdrGroup" id="groupTitle">GROUP A × B</div></div></div><div class="hdrRight"><div class="small" id="dayTop">DAY 1</div><div class="value" id="mapTop">ERANGEL</div></div></header>
@@ -142,9 +151,6 @@ function getKillCounts(c,events){
   for(const e of sortedEvents(events)){const t=findTeam(c,eventKiller(e));if(!t)continue;const k=teamName(t);counts[k]=(counts[k]||0)+1}
   return counts;
 }
-let deadSeen={};
-try{deadSeen=JSON.parse(localStorage.getItem("kf_dead_seen_"+ROOM)||"{}")||{}}catch{}
-function saveDeadSeen(){try{localStorage.setItem("kf_dead_seen_"+ROOM,JSON.stringify(deadSeen))}catch{}}
 function normName(v){return String(v??"").trim().toLowerCase().replace(/\s+/g," ")}
 function rosterMatch(c,player){
   const p=normName(player); if(!p)return null;
@@ -161,40 +167,27 @@ function rosterMatch(c,player){
 function getEliminatedTeams(c,events){
   const teams=teamsFromConfig(c);
   const deadByTeam=new Map();
-  teams.forEach(t=>deadByTeam.set(normName(teamName(t)),new Set(deadSeen[normName(teamName(t))]||[])));
+  for(const t of teams)deadByTeam.set(normName(teamName(t)),new Set());
 
-  // Count victims by matching the victim IGN directly against each team's
-  // roster. This is deliberately independent of findTeam(), so elimination
-  // still works even if an OCR name contains extra spaces/case differences.
   for(const e of sortedEvents(events)){
     const victim=normName(eventVictim(e));
     if(!victim)continue;
     const t=rosterMatch(c,victim);
     if(t){
       const key=normName(teamName(t));
-      if(!deadByTeam.has(key)) deadByTeam.set(key,new Set());
+      if(!deadByTeam.has(key))deadByTeam.set(key,new Set());
       deadByTeam.get(key).add(victim);
     }
   }
 
-  const out=teams.filter(t=>{
-    const configured=t?.eliminated===true ||
+  return teams.filter(t=>{
+    const configured =
+      t?.eliminated===true ||
       String(t?.status||"").toUpperCase()==="ELIMINATED" ||
       configuredAlive(t)===0;
     const dead=deadByTeam.get(normName(teamName(t)));
-    if(dead) deadSeen[normName(teamName(t))]=[...dead];
     return configured || !!(dead && dead.size>=4);
   });
-  saveDeadSeen();
-
-  // Admin TEST ELIMINATION also sends a short-lived cloud flag.
-  const test=c?.test_elimination;
-  if(test && Number(test.expires_at||0)>Date.now()){
-    const wanted=String(test.team||"").trim().toLowerCase();
-    const hit=teams.find(t=>teamName(t).trim().toLowerCase()===wanted);
-    if(hit && !out.some(t=>teamName(t).trim().toLowerCase()===wanted)) out.push(hit);
-  }
-  return out;
 }
 
 /* ---------- KILL FEED ---------- */
@@ -241,52 +234,99 @@ function renderTable(c,events){
 /* ---------- ELIMINATION ---------- */
 let shownElims=new Set(),elimTimer=null,currentMatch="";
 function eliminationSignature(t,c,events){
-  const team=normName(teamName(t)),dead=[];
+  const team=normName(teamName(t));
+  const dead=[];
   for(const e of sortedEvents(events)){
-    const v=normName(eventVictim(e));
-    if(!v)continue;
-    const vt=rosterMatch(c,v);
-    if(vt&&normName(teamName(vt))===team)dead.push(v);
+    const victim=normName(eventVictim(e));
+    if(!victim)continue;
+    const vt=rosterMatch(c,victim);
+    if(vt && normName(teamName(vt))===team) dead.push(victim);
   }
-  return team+"|"+[...new Set(dead)].sort().join(",")+"|"+(t?.eliminated===true?1:0)+"|"+(String(t?.status||"").toUpperCase()==="ELIMINATED"?1:0)+"|"+(configuredAlive(t)===0?1:0);
+  return team+"|"+[...new Set(dead)].sort().join(",")+"|"+
+    (t?.eliminated===true?1:0)+"|"+
+    (String(t?.status||"").toUpperCase()==="ELIMINATED"?1:0)+"|"+
+    (configuredAlive(t)===0?1:0);
 }
+
 function showElimination(t){
-  const a=$("elimAlert"),l=$("elimLogo"),n=$("elimTeam");if(!a||!n)return;
+  const a=$("elimAlert"),l=$("elimLogo"),n=$("elimTeam");
+  if(!a||!n)return;
+
   const u=teamLogo(t);
   if(l)l.innerHTML=u?`<img src="${esc(u)}">`:"";
   n.textContent=teamName(t);
+
+  // Force the existing banner to render. No visual/layout values are changed.
+  a.style.display="flex";
+  a.style.visibility="visible";
   a.classList.remove("show");
   void a.offsetWidth;
   a.classList.add("show");
+
   clearTimeout(elimTimer);
-  elimTimer=setTimeout(()=>a.classList.remove("show"),5200);
+  elimTimer=setTimeout(()=>{
+    a.classList.remove("show");
+    a.style.display="none";
+    a.style.visibility="hidden";
+  },5200);
 }
+
 function checkEliminations(c,events,b){
   const mk=String(b?.match||"MATCH 1");
-  if(mk!==currentMatch){currentMatch=mk;shownElims.clear()}
+  if(mk!==currentMatch){
+    currentMatch=mk;
+    shownElims.clear();
+  }
 
-  // Explicit Admin test flag: show the banner immediately while the
-  // four test events are being processed.
+  const teams=teamsFromConfig(c);
+
+  // 1) Admin test: this is the most reliable trigger for the 4-kill test.
   const test=c?.test_elimination;
-  if(test && Number(test.expires_at||0)>Date.now()){
+  if(test){
+    const expires=Number(test.expires_at||0);
     const wanted=normName(test.team);
-    const hit=teamsFromConfig(c).find(t=>normName(teamName(t))===wanted);
-    if(hit){
-      const key="TEST|"+wanted+"|"+String(test.nonce||"");
-      if(!shownElims.has(key)){
-        shownElims.add(key);
-        showElimination(hit);
+    if(wanted && (!expires || expires>Date.now())){
+      const hit=teams.find(t=>normName(teamName(t))===wanted);
+      if(hit){
+        const key="TEST_ELIM|"+wanted+"|"+String(test.nonce||"");
+        if(!shownElims.has(key)){
+          shownElims.add(key);
+          showElimination(hit);
+        }
       }
     }
   }
 
-  // Real elimination: four unique players of the same team's roster
-  // appear as victims. Kill credit remains with each actual killer team.
-  for(const t of getEliminatedTeams(c,events)){
-    const key=eliminationSignature(t,c,events);
-    if(!shownElims.has(key)){
-      shownElims.add(key);
-      showElimination(t);
+  // 2) Real match elimination: 4 unique roster players dead.
+  const deadByTeam=new Map();
+  for(const t of teams)deadByTeam.set(normName(teamName(t)),new Set());
+
+  for(const e of sortedEvents(events)){
+    const victim=normName(eventVictim(e));
+    if(!victim)continue;
+    const vt=rosterMatch(c,victim);
+    if(vt){
+      const key=normName(teamName(vt));
+      if(!deadByTeam.has(key))deadByTeam.set(key,new Set());
+      deadByTeam.get(key).add(victim);
+    }
+  }
+
+  for(const t of teams){
+    const configured =
+      t?.eliminated===true ||
+      String(t?.status||"").toUpperCase()==="ELIMINATED" ||
+      configuredAlive(t)===0;
+
+    const dead=deadByTeam.get(normName(teamName(t)));
+    const realElim=configured || !!(dead && dead.size>=4);
+
+    if(realElim){
+      const key="REAL_ELIM|"+eliminationSignature(t,c,events);
+      if(!shownElims.has(key)){
+        shownElims.add(key);
+        showElimination(t);
+      }
     }
   }
 }
