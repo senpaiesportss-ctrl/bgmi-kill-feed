@@ -1599,255 +1599,125 @@ function renderTable(
 
 }
 
-const eliminatedShown =
-  new Set();
+const eliminatedShown = new Set();
+let elimTimer = null;
 
-let elimTimer =
-  null;
-
-function eliminationFindTeam(c, player){
-
-  const p =
-    String(player || "")
-      .trim()
-      .toLowerCase();
-
-  if(!p)
-    return null;
-
-  const teams =
-    teamsFromConfig(c);
-
-  // Exact roster match first.
-  for(const t of teams){
-    if(
-      teamPlayers(t).some(
-        x =>
-          String(x)
-            .trim()
-            .toLowerCase()
-          === p
-      )
-    )
-      return t;
-  }
-
-  // Normalized match for OCR punctuation/case/spacing differences.
-  const normalizePlayer = v =>
-    String(v || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g,"");
-
-  const np = normalizePlayer(player);
-
-  if(!np)
-    return null;
-
-  for(const t of teams){
-    if(
-      teamPlayers(t).some(
-        x => normalizePlayer(x) === np
-      )
-    )
-      return t;
-  }
-
-  return null;
-
+function eliminationNorm(v){
+  return String(v ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g,"");
 }
 
-function getEliminatedTeams(
-  c,
-  raw
-){
+function eliminationFindTeam(c, player){
+  const p = String(player ?? "").trim().toLowerCase();
+  const pn = eliminationNorm(player);
+  if(!p && !pn) return null;
+  const teams = teamsFromConfig(c);
 
-  const events =
-    uniqueEvents(raw);
-
-  const teams =
-    teamsFromConfig(c);
-
-  const victimsByTeam =
-    new Map();
-
-  teams.forEach(
-    t => {
-
-      victimsByTeam.set(
-        teamName(t),
-        new Set()
-      );
-
-    }
+  const exact = teams.find(t =>
+    teamPlayers(t).some(x => String(x ?? "").trim().toLowerCase() === p)
   );
+  if(exact) return exact;
 
-  events.forEach(
-    e => {
-
-      const victim =
-        eventVictim(e);
-
-      if(!victim)
-        return;
-
-      const victimTeam =
-        eliminationFindTeam(
-          c,
-          victim
-        );
-
-      if(!victimTeam)
-        return;
-
-      const name =
-        teamName(
-          victimTeam
-        );
-
-      if(
-        !victimsByTeam.has(name)
-      ){
-
-        victimsByTeam.set(
-          name,
-          new Set()
-        );
-
-      }
-
-      victimsByTeam
-        .get(name)
-        .add(
-          String(victim)
-            .trim()
-            .toLowerCase()
-        );
-
-    }
+  const normalized = teams.find(t =>
+    teamPlayers(t).some(x => eliminationNorm(x) === pn)
   );
+  if(normalized) return normalized;
+
+  return teams.find(t =>
+    teamPlayers(t).some(x => {
+      const xn = eliminationNorm(x);
+      return pn.length >= 4 && xn.length >= 4 &&
+        (pn.includes(xn) || xn.includes(pn));
+    })
+  ) || null;
+}
+
+function teamExplicitlyEliminated(t){
+  const status = String(t?.status ?? t?.state ?? t?.team_status ?? "")
+    .trim().toLowerCase();
+  return (
+    t?.eliminated === true ||
+    t?.is_eliminated === true ||
+    status === "eliminated" ||
+    Number(t?.alive) === 0
+  );
+}
+
+function getEliminatedTeams(c, raw){
+  const events = uniqueEvents(raw);
+  const teams = teamsFromConfig(c);
+  const victimsByTeam = new Map();
+
+  teams.forEach(t => victimsByTeam.set(teamName(t), new Set()));
+
+  events.forEach(e => {
+    const victim = eventVictim(e);
+    if(!victim) return;
+
+    const victimTeam = eliminationFindTeam(c, victim);
+    if(!victimTeam) return;
+
+    const name = teamName(victimTeam);
+    if(!victimsByTeam.has(name)) victimsByTeam.set(name, new Set());
+    victimsByTeam.get(name).add(eliminationNorm(victim));
+  });
 
   const result = [];
 
-  teams.forEach(
-    t => {
+  teams.forEach(t => {
+    const name = teamName(t);
+    const victims = victimsByTeam.get(name);
 
-      const name =
-        teamName(t);
-
-      const victims =
-        victimsByTeam.get(name);
-
-      if(
-        victims &&
-        victims.size >= 4
-      ){
-
-        result.push(t);
-
-      }
-
+    if(
+      teamExplicitlyEliminated(t) ||
+      (victims && victims.size >= 4)
+    ){
+      result.push(t);
     }
-  );
+  });
+
+  // Admin test trigger; real match elimination still uses 4 unique victims.
+  const test = c?.test_elimination;
+  if(test && Number(test.expires_at || 0) > Date.now()){
+    const target = eliminationNorm(test.team);
+    const testTeam = teams.find(t => eliminationNorm(teamName(t)) === target);
+    if(testTeam && !result.some(t => teamName(t) === teamName(testTeam))){
+      result.push(testTeam);
+    }
+  }
 
   return result;
-
 }
 
 function showElimination(t){
-
-  const logo =
-    teamLogo(t);
-
-  const logoEl =
-    $("elimLogo");
+  const logo = teamLogo(t);
+  const logoEl = $("elimLogo");
 
   if(logo){
-
-    logoEl.src =
-      logo;
-
-    logoEl.style.visibility =
-      "visible";
-
+    logoEl.src = logo;
+    logoEl.style.visibility = "visible";
   }else{
-
-    logoEl.removeAttribute(
-      "src"
-    );
-
-    logoEl.style.visibility =
-      "hidden";
-
+    logoEl.removeAttribute("src");
+    logoEl.style.visibility = "hidden";
   }
 
-  $("elimName")
-    .textContent =
-    teamName(t);
+  $("elimName").textContent = teamName(t);
+  $("elimBanner").style.display = "flex";
 
-  $("elimBanner")
-    .style.display =
-    "flex";
-
-  clearTimeout(
-    elimTimer
-  );
-
-  elimTimer =
-    setTimeout(
-      () => {
-
-        $("elimBanner")
-          .style.display =
-          "none";
-
-      },
-      5000
-    );
-
+  clearTimeout(elimTimer);
+  elimTimer = setTimeout(() => {
+    $("elimBanner").style.display = "none";
+  }, 5000);
 }
 
-function checkEliminations(
-  c,
-  raw
-){
+function checkEliminations(c, raw){
+  const eliminated = getEliminatedTeams(c, raw);
 
-  const eliminated =
-    getEliminatedTeams(
-      c,
-      raw
-    );
-
-  for(
-    const t of eliminated
-  ){
-
-    const name =
-      teamName(t);
-
-    /*
-      LIVE ELIMINATION FIX
-      --------------------
-      Do not wait for a page refresh.
-
-      The overlay polls Supabase every 1 second. Whenever 4 unique
-      players from a team's roster are present as victims, the banner
-      is triggered immediately on that polling cycle.
-
-      We intentionally keep the existing eliminatedShown Set so the
-      same team's banner is not repeatedly triggered every second.
-    */
-
-    if(
-      eliminatedShown.has(name)
-    )
-      continue;
-
+  for(const t of eliminated){
+    const name = teamName(t);
+    if(eliminatedShown.has(name)) continue;
     eliminatedShown.add(name);
-
     showElimination(t);
-
   }
-
 }
 
 let updating =
@@ -1954,6 +1824,25 @@ setInterval(
   1000
 );
 
+
+// Instant live trigger for state/event changes.
+// The existing 1-second polling remains as fallback.
+try{
+  sb.channel("bgmi-kill-feed-live-overlay")
+    .on("postgres_changes", {
+      event:"*",
+      schema:"public",
+      table:"killfeed_state"
+    }, () => update())
+    .on("postgres_changes", {
+      event:"*",
+      schema:"public",
+      table:"killfeed_events"
+    }, () => update())
+    .subscribe();
+}catch(e){
+  console.warn("Realtime trigger unavailable:", e);
+}
 </script>
 
 </body>
