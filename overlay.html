@@ -501,6 +501,15 @@ html,body{
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.elimTag{
+  flex:0 0 auto;
+  margin-left:3px;
+  font-size:7px;
+  font-weight:1000;
+  letter-spacing:.4px;
+  color:#ff8d9a;
+  white-space:nowrap;
+}
 
 .num{
   font-size:10px;
@@ -1404,10 +1413,17 @@ function getKillCounts(
   );
 
   const storageKey = "bgmi_kill_ledger:" + ROOM;
-  let ledger = { resetKey, seen: {}, counts: {} };
+  let ledger = {
+    resetKey,
+    seen: {},
+    counts: {}
+  };
 
   try{
-    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    const saved = JSON.parse(
+      localStorage.getItem(storageKey) || "null"
+    );
+
     if(saved && saved.resetKey === resetKey){
       ledger = saved;
     }else{
@@ -1415,36 +1431,114 @@ function getKillCounts(
     }
   }catch(e){}
 
-  const events = eventsAfterReset(c, uniqueEvents(raw));
+  const events = eventsAfterReset(
+    c,
+    uniqueEvents(raw)
+  );
 
   for(const e of events){
+
     const key = eventKey(e);
-    if(!key || ledger.seen[key]) continue;
+
+    if(!key || ledger.seen[key])
+      continue;
 
     const killer = eventKiller(e);
     const t = findTeam(c, killer);
-    if(!t) continue;
+
+    if(!t)
+      continue;
 
     const name = teamName(t);
-    ledger.counts[name] = (Number(ledger.counts[name]) || 0) + 1;
+
+    ledger.counts[name] =
+      (Number(ledger.counts[name]) || 0) + 1;
+
     ledger.seen[key] = 1;
   }
 
-  // Keep the ledger small but safely larger than any normal match.
-  const seenKeys = Object.keys(ledger.seen);
-  if(seenKeys.length > 5000){
-    const keep = seenKeys.slice(-4000);
-    const next = {};
-    keep.forEach(k => next[k] = 1);
-    ledger.seen = next;
-  }
-
   try{
-    localStorage.setItem(storageKey, JSON.stringify(ledger));
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(ledger)
+    );
   }catch(e){}
 
   return ledger.counts;
+}
 
+function getEliminationState(c, raw){
+
+  const resetKey = String(
+    c?.match_reset_nonce ||
+    c?.match_reset_at ||
+    "NO_RESET"
+  );
+
+  const storageKey =
+    "bgmi_elimination_ledger:" + ROOM;
+
+  let ledger = {
+    resetKey,
+    seen: {},
+    victims: {}
+  };
+
+  try{
+    const saved = JSON.parse(
+      localStorage.getItem(storageKey) || "null"
+    );
+
+    if(saved && saved.resetKey === resetKey){
+      ledger = saved;
+    }else{
+      localStorage.removeItem(storageKey);
+    }
+  }catch(e){}
+
+  const events = eventsAfterReset(
+    c,
+    uniqueEvents(raw)
+  );
+
+  for(const e of events){
+
+    const key = eventKey(e);
+
+    if(!key || ledger.seen[key])
+      continue;
+
+    const victim = eventVictim(e);
+    if(!victim){
+      ledger.seen[key] = 1;
+      continue;
+    }
+
+    const victimTeam = eliminationFindTeam(c, victim);
+
+    if(victimTeam){
+
+      const name = teamName(victimTeam);
+
+      if(!ledger.victims[name])
+        ledger.victims[name] = {};
+
+      ledger.victims[name][
+        eliminationNorm(victim)
+      ] = 1;
+    }
+
+    ledger.seen[key] = 1;
+  }
+
+  try{
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(ledger)
+    );
+  }catch(e){}
+
+  return ledger;
 }
 
 function num(
@@ -1541,6 +1635,11 @@ function renderTable(
       raw
     );
 
+  const eliminatedTeams = new Set(
+    getEliminatedTeams(c, raw)
+      .map(t => teamName(t))
+  );
+
   const rows =
     teams.map(
       (t,index) => {
@@ -1594,7 +1693,7 @@ function renderTable(
 
           return `
 
-          <div class="prow ${r.t.eliminated ? "eliminated" : ""}">
+          <div class="prow ${eliminatedTeams.has(r.name) ? "eliminated" : ""}">
 
             <div class="rank">
               ${index + 1}
@@ -1625,6 +1724,14 @@ function renderTable(
                 )}
 
               </b>
+
+              ${
+                eliminatedTeams.has(r.name)
+                ?
+                `<span class="elimTag">ELIMINATED</span>`
+                :
+                ""
+              }
 
             </div>
 
@@ -1695,44 +1802,56 @@ function teamExplicitlyEliminated(t){
 }
 
 function getEliminatedTeams(c, raw){
-  const events = uniqueEvents(raw);
+
   const teams = teamsFromConfig(c);
-  const victimsByTeam = new Map();
-
-  teams.forEach(t => victimsByTeam.set(teamName(t), new Set()));
-
-  events.forEach(e => {
-    const victim = eventVictim(e);
-    if(!victim) return;
-
-    const victimTeam = eliminationFindTeam(c, victim);
-    if(!victimTeam) return;
-
-    const name = teamName(victimTeam);
-    if(!victimsByTeam.has(name)) victimsByTeam.set(name, new Set());
-    victimsByTeam.get(name).add(eliminationNorm(victim));
-  });
+  const ledger = getEliminationState(c, raw);
 
   const result = [];
 
   teams.forEach(t => {
+
     const name = teamName(t);
-    const victims = victimsByTeam.get(name);
+    const victims =
+      ledger.victims[name] || {};
+
+    const uniqueVictims =
+      Object.keys(victims).filter(Boolean).length;
 
     if(
       teamExplicitlyEliminated(t) ||
-      (victims && victims.size >= 4)
+      uniqueVictims >= 4
     ){
       result.push(t);
     }
   });
 
-  // Admin test trigger; real match elimination still uses 4 unique victims.
+  // Admin manual/test elimination signal.
   const test = c?.test_elimination;
-  if(test && Number(test.expires_at || 0) > Date.now()){
-    const target = eliminationNorm(test.team);
-    const testTeam = teams.find(t => eliminationNorm(teamName(t)) === target);
-    if(testTeam && !result.some(t => teamName(t) === teamName(testTeam))){
+
+  if(
+    test &&
+    Number(test.expires_at || 0) > Date.now()
+  ){
+
+    const target =
+      eliminationNorm(test.team);
+
+    const testTeam =
+      teams.find(
+        t => eliminationNorm(teamName(t)) === target
+      ) ||
+      teams.find(t => {
+        const n = eliminationNorm(teamName(t));
+        return n && target &&
+          (n.includes(target) || target.includes(n));
+      });
+
+    if(
+      testTeam &&
+      !result.some(
+        t => teamName(t) === teamName(testTeam)
+      )
+    ){
       result.push(testTeam);
     }
   }
