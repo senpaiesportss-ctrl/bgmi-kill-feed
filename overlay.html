@@ -1473,6 +1473,10 @@ function getEliminationState(c, raw){
     c?.match_reset_nonce ||
     c?.match_reset_at ||
     "NO_RESET"
+  ) + "|ELIM|" + String(
+    c?.elimination_reset_nonce ||
+    c?.elimination_reset_at ||
+    "0"
   );
 
   const storageKey =
@@ -1496,10 +1500,18 @@ function getEliminationState(c, raw){
     }
   }catch(e){}
 
-  const events = eventsAfterReset(
+  const baseEvents = eventsAfterReset(
     c,
     uniqueEvents(raw)
   );
+
+  const elimResetAt = Number(c?.elimination_reset_at || 0);
+  const events = elimResetAt
+    ? baseEvents.filter(e => {
+        const t = eventTime(e);
+        return !t || t >= elimResetAt;
+      })
+    : baseEvents;
 
   for(const e of events){
 
@@ -1882,7 +1894,7 @@ function showElimination(t){
 
 function checkEliminations(c, raw){
 
-  const resetNonce = String(c?.match_reset_nonce || c?.match_reset_at || "");
+  const resetNonce = String(c?.elimination_reset_nonce || c?.elimination_reset_at || "");
   if(resetNonce && resetNonce !== lastResetNonce){
     lastResetNonce = resetNonce;
     eliminatedShown.clear();
