@@ -459,6 +459,27 @@ html,body{
   color:var(--gold);
 }
 
+/* Eliminated team stays visible in the points table and its team name is highlighted. */
+.prow.eliminated{
+  border-color:rgba(255,104,120,.62);
+  background:linear-gradient(90deg,rgba(75,18,28,.55),rgba(7,14,28,.82));
+}
+
+.prow.eliminated .team b{
+  color:#ff6878;
+  text-shadow:0 0 8px rgba(255,104,120,.22);
+}
+
+.prow.eliminated .team:after{
+  content:"ELIMINATED";
+  margin-left:6px;
+  flex:none;
+  color:#ff6878;
+  font-size:7px;
+  font-weight:1000;
+  letter-spacing:.7px;
+}
+
 .team{
   display:flex;
   align-items:center;
@@ -1367,41 +1388,62 @@ function showKillFeed(
 
 }
 
+// Persistent match kill ledger.
+// The events RPC may return only a rolling/latest window; therefore we
+// NEVER rebuild the scoreboard from only the currently returned events.
+// Every event is counted once and kept until the Admin presses RESET MATCH.
 function getKillCounts(
   c,
   raw
 ){
 
-  const events =
-    eventsAfterReset(c, uniqueEvents(raw));
-
-  const counts = {};
-
-  events.forEach(
-    e => {
-
-      const killer =
-        eventKiller(e);
-
-      const t =
-        findTeam(
-          c,
-          killer
-        );
-
-      if(!t)
-        return;
-
-      const name =
-        teamName(t);
-
-      counts[name] =
-        (counts[name] || 0) + 1;
-
-    }
+  const resetKey = String(
+    c?.match_reset_nonce ||
+    c?.match_reset_at ||
+    "NO_RESET"
   );
 
-  return counts;
+  const storageKey = "bgmi_kill_ledger:" + ROOM;
+  let ledger = { resetKey, seen: {}, counts: {} };
+
+  try{
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if(saved && saved.resetKey === resetKey){
+      ledger = saved;
+    }else{
+      localStorage.removeItem(storageKey);
+    }
+  }catch(e){}
+
+  const events = eventsAfterReset(c, uniqueEvents(raw));
+
+  for(const e of events){
+    const key = eventKey(e);
+    if(!key || ledger.seen[key]) continue;
+
+    const killer = eventKiller(e);
+    const t = findTeam(c, killer);
+    if(!t) continue;
+
+    const name = teamName(t);
+    ledger.counts[name] = (Number(ledger.counts[name]) || 0) + 1;
+    ledger.seen[key] = 1;
+  }
+
+  // Keep the ledger small but safely larger than any normal match.
+  const seenKeys = Object.keys(ledger.seen);
+  if(seenKeys.length > 5000){
+    const keep = seenKeys.slice(-4000);
+    const next = {};
+    keep.forEach(k => next[k] = 1);
+    ledger.seen = next;
+  }
+
+  try{
+    localStorage.setItem(storageKey, JSON.stringify(ledger));
+  }catch(e){}
+
+  return ledger.counts;
 
 }
 
@@ -1552,7 +1594,7 @@ function renderTable(
 
           return `
 
-          <div class="prow">
+          <div class="prow ${r.t.eliminated ? "eliminated" : ""}">
 
             <div class="rank">
               ${index + 1}
