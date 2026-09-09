@@ -83,6 +83,9 @@ input{
 }
 input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,66,.08)}
 .players{display:grid;gap:7px;margin-top:10px}.prow{display:flex;gap:7px}.prow input{flex:1}
+.manualKill{margin-top:12px;padding:10px;border:1px solid #243243;border-radius:12px;background:#080d14}.manualKillTitle{font-size:11px;color:var(--cyan);font-weight:900;letter-spacing:.7px;margin-bottom:8px}.manualGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.manualGrid select,.manualGrid input{width:100%;background:#070b11;color:#fff;border:1px solid #2a3544;border-radius:9px;padding:9px;outline:0}.manualGrid .wide{grid-column:1/-1}.manualAdd{width:100%;margin-top:8px;background:linear-gradient(135deg,var(--cyan),#168aa5);color:#071018}
+.elimAdd{width:100%;margin-top:8px;background:linear-gradient(135deg,#ff596d,#a51f35);color:#fff}.resetAdd{width:100%;margin-top:10px;background:#2b151a;color:#ff9ba5;border:1px solid #6a2832}.elimState{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:#35151c;color:#ff9ba5;font-size:10px;font-weight:900;letter-spacing:.5px}
+@media(max-width:650px){.manualGrid{grid-template-columns:1fr}.manualGrid .wide{grid-column:auto}}
 .btn{
   border:0;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;
   background:#1b2532;color:#fff;transition:.18s
@@ -181,6 +184,10 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
     </div>
 
     <div id="teams" class="teams"></div>
+  <div class="card" style="margin-top:12px;border-color:rgba(54,217,255,.25)">
+    <h2>⚡ Manual Scoring</h2>
+    <p class="mut" style="margin:6px 0 0">Har team ke card ke niche <b>ADD KILL → POINTS TABLE</b> se manually kill enter karo. Kill Supabase me event banega, isliye overlay/points table ko refresh karne ki zarurat nahi.</p>
+  </div>
 
     <div class="actions">
       <button class="btn" onclick="addTeam()">＋ Team</button>
@@ -215,7 +222,7 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
     <div class="sectionHead">
       <div>
         <h2>🎯 Capture Area & Testing</h2>
-        <p class="mut">OCR capture region + cloud kill-feed testing.</p>
+        <p class="mut">OCR capture + manual kill entry + cloud testing.</p>
       </div>
       <div class="badge">AUTO SYNC</div>
     </div>
@@ -346,13 +353,119 @@ function render(){
         `).join("")}
       </div>
 
+      <div class="manualKill">
+        <div class="manualKillTitle">⚡ MANUAL KILL ENTRY — POINTS AUTO UPDATE</div>
+        <div class="manualGrid">
+          <select id="mkKiller${i}">${(t.players||[]).map(p=>`<option value="${esc(p)}">Killer: ${esc(p)}</option>`).join("")}</select>
+          <select id="mkVictim${i}">${manualVictimOptions(i)}</select>
+          <input id="mkWeapon${i}" class="wide" value="GUN" placeholder="Weapon (optional)">
+        </div>
+        <button class="btn manualAdd" onclick="manualKill(${i})">＋ ADD KILL → POINTS TABLE</button>
+      </div>
+
       <div class="actions">
         <button class="btn" onclick="player(${i})">＋ Player</button>
         <button class="btn red" onclick="cfg.teams.splice(${i},1);render()">Remove</button>
       </div>
+
+      <button class="btn elimAdd" onclick="manualEliminate(${i})">☠ TEAM ELIMINATED — SHOW ON OVERLAY</button>
+      ${t.eliminated ? `<div class="elimState">TEAM STATUS: ELIMINATED</div>` : ``}
     `;
     d.appendChild(e);
   });
+}
+
+function manualVictimOptions(killerTeamIndex){
+  const out=[];
+  (cfg.teams||[]).forEach((t,ti)=>{
+    if(ti===killerTeamIndex) return;
+    (t.players||[]).forEach(p=>{
+      const value=JSON.stringify({team:ti,player:p}).replace(/</g,"\\u003c");
+      out.push(`<option value='${esc(value)}'>Victim: ${esc(t.name||("Team "+(ti+1)))} — ${esc(p)}</option>`);
+    });
+  });
+  return out.length?out.join(""):"<option value=\"\">No victim players</option>";
+}
+
+async function manualKill(teamIndex){
+  try{
+    sync();
+    const killerEl=$("mkKiller"+teamIndex);
+    const victimEl=$("mkVictim"+teamIndex);
+    const weaponEl=$("mkWeapon"+teamIndex);
+    if(!killerEl || !victimEl) throw new Error("Manual kill controls not found. Page refresh karke roster load karo.");
+    const killer=String(killerEl.value||"").trim();
+    if(!killer) throw new Error("Killer player select karo.");
+    let victimData=null;
+    try{ victimData=JSON.parse(victimEl.value||""); }catch(e){}
+    if(!victimData || !victimData.player) throw new Error("Victim player select karo.");
+    const victim=String(victimData.player).trim();
+    const weapon=String(weaponEl?.value||"GUN").trim()||"GUN";
+
+    await addEvent(killer,victim,weapon);
+    pingOverlay();
+    $("status").textContent=`MANUAL KILL SENT ✅ | ${killer} → ${victim} | Points updated`;
+    alert(`Kill Added ✅\n\n${killer} → ${weapon} → ${victim}\n\nPoints table automatically update hoga.`);
+  }catch(e){
+    alert("MANUAL KILL ERROR ❌\n\n"+(e.message||e));
+  }
+}
+
+async function manualEliminate(teamIndex){
+  try{
+    sync();
+    const team=cfg.teams[teamIndex];
+    if(!team) throw new Error("Team nahi mila.");
+    const teamName=String(team.name||"").trim();
+    if(!teamName) throw new Error("Pehle team ka naam save karo.");
+
+    // Persist the manual elimination state so the points table can mark it.
+    team.eliminated=true;
+    team.status="ELIMINATED";
+    team.alive=0;
+
+    // Dedicated cloud signal consumed by the overlay.
+    cfg.test_elimination={
+      team:teamName,
+      nonce:Date.now(),
+      expires_at:Date.now()+60000
+    };
+
+    await setState(cfg);
+    pingOverlay();
+    render();
+
+    $("status").textContent=`TEAM ELIMINATED SENT ✅ | ${teamName}`;
+    alert(`TEAM ELIMINATED ✅\n\n${teamName}\n\nOverlay par TEAM ELIMINATED banner show hoga.\nPoints table me team eliminated mark rahega.`);
+  }catch(e){
+    alert("TEAM ELIMINATION ERROR ❌\n\n"+(e.message||e));
+  }
+}
+
+async function resetMatch(){
+  try{
+    if(!confirm("RESET CURRENT MATCH?\n\nIsse current match ke points/kills overlay se clear ho jayenge.\nTeam roster rahega. Next kills 0 se count honge.")) return;
+
+    sync();
+    const now=Date.now();
+    cfg.match_reset_at=now;
+    cfg.match_reset_nonce=String(now);
+    cfg.test_elimination=null;
+    (cfg.teams||[]).forEach(t=>{
+      t.eliminated=false;
+      t.status="ALIVE";
+      if(Number(t.alive)===0) t.alive=(t.players||[]).length;
+    });
+
+    await setState(cfg);
+    pingOverlay();
+    render();
+
+    $("status").textContent="MATCH RESET DONE ✅ | Points/Kills cleared";
+    alert("MATCH RESET DONE ✅\n\nAb naya match start hai.\nAutomatic + Manual kills ab 0 se count honge.");
+  }catch(e){
+    alert("MATCH RESET ERROR ❌\n\n"+(e.message||e));
+  }
 }
 
 function addTeam(){
