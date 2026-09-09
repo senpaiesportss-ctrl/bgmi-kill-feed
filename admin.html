@@ -84,7 +84,7 @@ input{
 input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,66,.08)}
 .players{display:grid;gap:7px;margin-top:10px}.prow{display:flex;gap:7px}.prow input{flex:1}
 .manualKill{margin-top:12px;padding:10px;border:1px solid #243243;border-radius:12px;background:#080d14}.manualKillTitle{font-size:11px;color:var(--cyan);font-weight:900;letter-spacing:.7px;margin-bottom:8px}.manualGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.manualGrid select,.manualGrid input{width:100%;background:#070b11;color:#fff;border:1px solid #2a3544;border-radius:9px;padding:9px;outline:0}.manualGrid .wide{grid-column:1/-1}.manualAdd{width:100%;margin-top:8px;background:linear-gradient(135deg,var(--cyan),#168aa5);color:#071018}
-.elimAdd{width:100%;margin-top:8px;background:linear-gradient(135deg,#ff596d,#a51f35);color:#fff}.resetAdd{width:100%;margin-top:10px;background:#2b151a;color:#ff9ba5;border:1px solid #6a2832}.elimState{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:#35151c;color:#ff9ba5;font-size:10px;font-weight:900;letter-spacing:.5px}
+.placementBox{margin-top:12px;padding:10px;border:1px solid rgba(245,197,66,.28);border-radius:12px;background:#0a0e14}.placementTitle{font-size:11px;color:var(--gold);font-weight:900;letter-spacing:.7px;margin-bottom:8px}.placementGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.placementGrid select{width:100%;background:#070b11;color:#fff;border:1px solid #2a3544;border-radius:9px;padding:9px;outline:0}.placementSave{width:100%;margin-top:8px;background:linear-gradient(135deg,var(--gold),#dca916);color:#111}.elimAdd{width:100%;margin-top:8px;background:linear-gradient(135deg,#ff596d,#a51f35);color:#fff}.resetAdd{width:100%;margin-top:10px;background:#2b151a;color:#ff9ba5;border:1px solid #6a2832}.elimState{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:#35151c;color:#ff9ba5;font-size:10px;font-weight:900;letter-spacing:.5px}
 @media(max-width:650px){.manualGrid{grid-template-columns:1fr}.manualGrid .wide{grid-column:auto}}
 .btn{
   border:0;border-radius:9px;padding:10px 13px;font-weight:900;cursor:pointer;
@@ -221,13 +221,14 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
   <section class="card" style="border-color:rgba(245,197,66,.28)">
     <div class="sectionHead">
       <div>
-        <h2>🏁 Match Control</h2>
-        <p class="mut">Kills + points current match ke end tak accumulate honge. Sirf ye button dabane par naya match 0 se start hoga.</p>
+        <h2>🏁 Match & Points Control</h2>
+        <p class="mut">Current reset sirf ELIMINATED tag/banner hatayega. Kills, placement points aur ranking bilkul same rahenge. FULL POINTS RESET se sab points/kills 0 honge.</p>
       </div>
       <div class="badge">CUMULATIVE POINTS</div>
     </div>
     <div class="actions">
-      <button class="btn gold" onclick="resetMatch()">↻ RESET OVERALL POINTS — NEW MATCH</button>
+      <button class="btn red" onclick="resetCurrentEliminations()">↻ RESET CURRENT ELIMINATIONS</button>
+      <button class="btn gold" onclick="resetFullPoints()">⟳ FULL POINTS RESET — START FRESH</button>
     </div>
   </section>
 
@@ -376,6 +377,17 @@ function render(){
         <button class="btn manualAdd" onclick="manualKill(${i})">＋ ADD KILL → POINTS TABLE</button>
       </div>
 
+      <div class="placementBox">
+        <div class="placementTitle">🏁 PLACEMENT POINTS — AUTO TOTAL</div>
+        <div class="placementGrid">
+          <select id="placeRank${i}" onchange="previewPlacement(${i})">
+            ${Array.from({length:16},(_,r)=>`<option value="${r+1}" ${Number(t.placement_rank||0)===(r+1)?"selected":""}>#${r+1} — ${placementPointsForRank(r+1)} pts</option>`).join("")}
+          </select>
+          <input id="placePts${i}" value="${Number(t.placement_points||0)} POINTS" readonly>
+        </div>
+        <button class="btn placementSave" onclick="savePlacement(${i})">SAVE PLACEMENT POINTS → TOTAL</button>
+      </div>
+
       <div class="actions">
         <button class="btn" onclick="player(${i})">＋ Player</button>
         <button class="btn red" onclick="cfg.teams.splice(${i},1);render()">Remove</button>
@@ -386,6 +398,46 @@ function render(){
     `;
     d.appendChild(e);
   });
+}
+
+function placementPointsForRank(rank){
+  const r=Number(rank)||0;
+  if(r===1) return 10;
+  if(r===2) return 6;
+  if(r===3) return 5;
+  if(r===4) return 4;
+  if(r===5) return 3;
+  if(r===6) return 2;
+  if(r===7 || r===8) return 1;
+  return 0;
+}
+
+function previewPlacement(teamIndex){
+  const rank=Number($("placeRank"+teamIndex)?.value||0);
+  const pts=placementPointsForRank(rank);
+  const el=$("placePts"+teamIndex);
+  if(el) el.value=pts+" POINTS";
+}
+
+async function savePlacement(teamIndex){
+  try{
+    sync();
+    const team=cfg.teams[teamIndex];
+    if(!team) throw new Error("Team nahi mila.");
+    const rank=Number($("placeRank"+teamIndex)?.value||0);
+    const pts=placementPointsForRank(rank);
+    team.placement_rank=rank;
+    team.placement=pts;
+    team.placement_points=pts;
+    team.place_points=pts;
+    await setState(cfg);
+    pingOverlay();
+    render();
+    $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | #${rank} = ${pts} pts`;
+    alert(`PLACEMENT SAVED ✅\n\n${team.name}\n#${rank} = ${pts} placement points\n\nYe points TOTAL me add rahenge jab tak FULL POINTS RESET nahi karoge.`);
+  }catch(e){
+    alert("PLACEMENT SAVE ERROR ❌\n\n"+(e.message||e));
+  }
 }
 
 function manualVictimOptions(killerTeamIndex){
@@ -455,34 +507,55 @@ async function manualEliminate(teamIndex){
   }
 }
 
-async function resetMatch(){
+async function resetCurrentEliminations(){
   try{
-    if(!confirm("RESET CURRENT MATCH?\n\nIsse current match ke points/kills overlay se clear ho jayenge.\nTeam roster rahega. Next kills 0 se count honge.")) return;
-
+    if(!confirm("RESET CURRENT ELIMINATIONS?\n\nSirf ELIMINATED tag/banner remove hoga.\nKills, placement points, total points aur ranking same rahenge.")) return;
     sync();
     const now=Date.now();
-    cfg.match_reset_at=now;
-    cfg.match_reset_nonce=String(now);
+    cfg.elimination_reset_at=now;
+    cfg.elimination_reset_nonce=String(now);
     cfg.test_elimination=null;
     (cfg.teams||[]).forEach(t=>{
       t.eliminated=false;
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
-      // Placement points belong to the previous match too.
-      // Reset them so the next match starts completely fresh.
+    });
+    await setState(cfg);
+    pingOverlay();
+    render();
+    $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
+    alert("CURRENT ELIMINATIONS RESET ✅\n\nSirf eliminated status hata hai.\nKills + placement points + total same rahenge.");
+  }catch(e){
+    alert("CURRENT RESET ERROR ❌\n\n"+(e.message||e));
+  }
+}
+
+async function resetFullPoints(){
+  try{
+    if(!confirm("⚠ FULL POINTS RESET?\n\nIsse KILLS + PLACEMENT POINTS + TOTAL POINTS reset honge.\nRoster/team names delete nahi honge.")) return;
+    sync();
+    const now=Date.now();
+    cfg.match_reset_at=now;
+    cfg.match_reset_nonce=String(now);
+    cfg.elimination_reset_at=now;
+    cfg.elimination_reset_nonce=String(now);
+    cfg.test_elimination=null;
+    (cfg.teams||[]).forEach(t=>{
+      t.eliminated=false;
+      t.status="ALIVE";
+      t.alive=(t.players||[]).length;
+      t.placement_rank=0;
       t.placement=0;
       t.placement_points=0;
       t.place_points=0;
     });
-
     await setState(cfg);
     pingOverlay();
     render();
-
-    $("status").textContent="MATCH RESET DONE ✅ | Points/Kills cleared";
-    alert("MATCH RESET DONE ✅\n\nAb naya match start hai.\nAutomatic + Manual kills ab 0 se count honge.");
+    $("status").textContent="FULL POINTS RESET DONE ✅ | Kills + Placement = 0";
+    alert("FULL POINTS RESET DONE ✅\n\nKills = 0\nPlacement = 0\nTotal = 0\n\nRoster safe hai.");
   }catch(e){
-    alert("MATCH RESET ERROR ❌\n\n"+(e.message||e));
+    alert("FULL RESET ERROR ❌\n\n"+(e.message||e));
   }
 }
 
