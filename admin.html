@@ -218,6 +218,19 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
     </div>
   </section>
 
+  <section class="card" style="border-color:rgba(245,197,66,.28)">
+    <div class="sectionHead">
+      <div>
+        <h2>🏁 Match Control</h2>
+        <p class="mut">Kills + points current match ke end tak accumulate honge. Sirf ye button dabane par naya match 0 se start hoga.</p>
+      </div>
+      <div class="badge">CUMULATIVE POINTS</div>
+    </div>
+    <div class="actions">
+      <button class="btn gold" onclick="resetMatch()">↻ RESET OVERALL POINTS — NEW MATCH</button>
+    </div>
+  </section>
+
   <section class="card">
     <div class="sectionHead">
       <div>
@@ -454,7 +467,12 @@ async function resetMatch(){
     (cfg.teams||[]).forEach(t=>{
       t.eliminated=false;
       t.status="ALIVE";
-      if(Number(t.alive)===0) t.alive=(t.players||[]).length;
+      t.alive=(t.players||[]).length;
+      // Placement points belong to the previous match too.
+      // Reset them so the next match starts completely fresh.
+      t.placement=0;
+      t.placement_points=0;
+      t.place_points=0;
     });
 
     await setState(cfg);
