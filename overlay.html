@@ -1129,6 +1129,15 @@ function normalizeEvents(raw){
 
 }
 
+function eventsAfterReset(c, events){
+  const resetAt = Number(c?.match_reset_at || 0);
+  if(!resetAt) return events;
+  return events.filter(e => {
+    const t = eventTime(e);
+    return !t || t >= resetAt;
+  });
+}
+
 function eventKey(e){
 
   if(
@@ -1364,7 +1373,7 @@ function getKillCounts(
 ){
 
   const events =
-    uniqueEvents(raw);
+    eventsAfterReset(c, uniqueEvents(raw));
 
   const counts = {};
 
@@ -1601,6 +1610,7 @@ function renderTable(
 
 const eliminatedShown = new Set();
 let elimTimer = null;
+let lastResetNonce = "";
 
 function eliminationNorm(v){
   return String(v ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -1711,6 +1721,16 @@ function showElimination(t){
 
 function checkEliminations(c, raw){
 
+  const resetNonce = String(c?.match_reset_nonce || c?.match_reset_at || "");
+  if(resetNonce && resetNonce !== lastResetNonce){
+    lastResetNonce = resetNonce;
+    eliminatedShown.clear();
+    clearTimeout(elimTimer);
+    $("elimBanner").style.display = "none";
+  }
+
+  raw = eventsAfterReset(c, uniqueEvents(raw));
+
   // TEST ELIMINATION is a direct cloud signal.
   // Do NOT require the team roster lookup to succeed.
   // This is what makes the Admin test banner reliable even if
@@ -1790,8 +1810,9 @@ async function update(){
       state;
 
     const events =
-      normalizeEvents(
-        rawEvents
+      eventsAfterReset(
+        c,
+        normalizeEvents(rawEvents)
       );
 
     const b =
