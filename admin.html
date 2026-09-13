@@ -210,7 +210,14 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
       <div><div class="num">Day</div><input id="bDay" value="DAY 1"></div>
       <div><div class="num">Map</div><input id="bMap" value="ERANGEL"></div>
       <div><div class="num">Remaining</div><input id="bRemaining" type="number" value="16"></div>
-      <div><div class="num">Kill Feed Popup</div><select id="bKillFeed" style="width:100%;background:#070b11;color:#fff;border:1px solid #2a3544;border-radius:9px;padding:10px;outline:0"><option value="true">ON — SHOW POPUP</option><option value="false">OFF — HIDE POPUP</option></select></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+      <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:900;letter-spacing:.4px;">
+        <input id="bKillFeed" type="checkbox" checked style="width:18px;height:18px;accent-color:#19cfff;">
+        SHOW KILL FEED POPUP ON OVERLAY
+      </label>
+      <span class="mut" style="margin:0;">Kill aate hi popup show/hide control</span>
     </div>
 
     <div class="actions">
@@ -280,84 +287,39 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
 <script>
 let cfg={teams:[]};
 
-// FAST + SAFE CLOUD BRIDGE
-// All state writes from Admin are serialized in this tab and retried on
-// transient PostgreSQL lock/timeout errors. Event inserts stay independent
-// so multiple kills can be added without waiting behind a state write.
-const __KF_URL = window.KF_CONFIG?.SUPABASE_URL || "https://nuywberanlfvngjnjcpx.supabase.co";
-const __KF_KEY = window.KF_CONFIG?.SUPABASE_PUBLISHABLE_KEY || "";
-const __KF_SB = supabase.createClient(__KF_URL, __KF_KEY);
-const __KF_ROOM = () => localStorage.getItem("kf_room") || "ADITYA8029";
+// LIVE FIX: serialize all cloud state writes and retry transient
+// PostgreSQL statement-timeout/row-lock errors instead of failing the match.
+const __cloudSetState = window.setState;
+let __stateWriteQueue = Promise.resolve();
 
-function __unwrapConfig(v){
-  if(v && typeof v === "object" && v.config && typeof v.config === "object") return v.config;
-  if(v && typeof v === "object" && v.state && typeof v.state === "object") return v.state;
-  return v || {teams:[]};
+function __sleep(ms){
+  return new Promise(r=>setTimeout(r,ms));
 }
 
-async function __rawGetState(){
-  const r = await __KF_SB.rpc("kf_get_state", {p_room_code:__KF_ROOM()});
-  if(r.error) throw r.error;
-  return __unwrapConfig(r.data);
-}
-
-async function __rawSetState(next){
-  const r = await __KF_SB.rpc("kf_set_state", {
-    p_room_code:__KF_ROOM(),
-    p_config:next
-  });
-  if(r.error) throw r.error;
-  return __unwrapConfig(r.data);
-}
-
-async function __rawAddEvent(killer,victim,weapon){
-  const r = await __KF_SB.rpc("kf_add_event", {
-    p_room_code:__KF_ROOM(),
-    p_killer:killer,
-    p_victim:victim,
-    p_weapon:weapon || "GUN"
-  });
-  if(r.error) throw r.error;
-  return r.data;
-}
-
-async function __rawGetEvents(){
-  const r = await __KF_SB.rpc("kf_events", {p_room_code:__KF_ROOM()});
-  if(r.error) throw r.error;
-  return r.data;
-}
-
-function __sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-let __stateWriteTail = Promise.resolve();
-
-async function __setStateRetry(next){
+async function __setStateSafe(nextCfg){
   let lastErr;
-  // Wait long enough for another legitimate writer (OCR) to finish.
-  for(let attempt=1; attempt<=10; attempt++){
+  for(let attempt=1; attempt<=12; attempt++){
     try{
-      return await __rawSetState(next);
+      return await __cloudSetState(nextCfg);
     }catch(e){
       lastErr=e;
       const msg=String(e?.message||e||"");
-      const transient=/statement timeout|canceling statement|timeout|deadlock|lock|could not obtain|conflict/i.test(msg);
-      if(!transient || attempt===10) throw e;
-      await __sleep(Math.min(3000, 250 * attempt));
+      const transient =
+        /statement timeout|canceling statement|timeout|deadlock|lock|could not obtain/i.test(msg);
+      if(!transient || attempt===12) throw e;
+      await __sleep(Math.min(2500, 300 * attempt));
     }
   }
   throw lastErr || new Error("Cloud state write failed.");
 }
 
-function __queuedSetState(next){
-  const job=__stateWriteTail.then(()=>__setStateRetry(next));
-  __stateWriteTail=job.catch(()=>{});
+function __queueSetState(nextCfg){
+  const job=__stateWriteQueue.then(()=>__setStateSafe(nextCfg));
+  __stateWriteQueue=job.catch(()=>{});
   return job;
 }
 
-getState = __rawGetState;
-setState = __queuedSetState;
-addEvent = __rawAddEvent;
-getEvents = __rawGetEvents;
+window.setState=__queueSetState;
 
 const $=x=>document.getElementById(x);
 
@@ -372,7 +334,7 @@ async function login(){
   if(!r){$("err").textContent="Room code enter karo.";return;}
   localStorage.setItem("kf_room",r);
   try{
-    cfg=__unwrapConfig(await getState());
+    cfg=await getState();
     $("login").classList.add("hide");
     $("app").classList.remove("hide");
     load();
@@ -387,7 +349,7 @@ async function boot(){
   const r=localStorage.getItem("kf_room");
   if(!r){$("status").textContent="Room code required.";return;}
   try{
-    cfg=__unwrapConfig(await getState());
+    cfg=await getState();
     if(!cfg) throw new Error("Cloud se config nahi mili.");
     $("login").classList.add("hide");
     $("app").classList.remove("hide");
@@ -415,7 +377,7 @@ function load(){
   $("bDay").value=cfg.broadcast?.day||"DAY 1";
   $("bMap").value=cfg.broadcast?.map||"ERANGEL";
   $("bRemaining").value=cfg.broadcast?.remaining??16;
-  $("bKillFeed").value = cfg.show_kill_feed === false ? "false" : "true";
+  $("bKillFeed").checked = cfg.broadcast?.kill_feed_enabled !== false;
 
   $("url").textContent=location.origin+"/overlay";
   render();
@@ -515,7 +477,7 @@ async function savePlacement(teamIndex){
     pingOverlay();
     render();
     $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | #${rank} = ${pts} pts`;
-
+    alert(`PLACEMENT SAVED ✅\n\n${team.name}\n#${rank} = ${pts} placement points\n\nYe points TOTAL me add rahenge jab tak FULL POINTS RESET nahi karoge.`);
   }catch(e){
     alert("PLACEMENT SAVE ERROR ❌\n\n"+(e.message||e));
   }
@@ -554,8 +516,7 @@ const taggedWeapon="__KF_MANUAL__"+teamIndex+"__"+encodeURIComponent(weapon);
 
     await addEvent(killer,victim,taggedWeapon);
     pingOverlay();
-    $("status").textContent=`MANUAL KILL SENT ✅ | TEAM ${teamIndex+1} | ${killer} → ${victim} | Points updated`;
-
+    $("status").textContent=`KILL ADDED ✅ | TEAM ${teamIndex+1} | ${killer} → ${victim} | Points updating live`;
   }catch(e){
     alert("MANUAL KILL ERROR ❌\n\n"+(e.message||e));
   }
@@ -586,18 +547,15 @@ async function manualEliminate(teamIndex){
     render();
 
     $("status").textContent=`TEAM ELIMINATED SENT ✅ | ${teamName}`;
+    alert(`TEAM ELIMINATED ✅\n\n${teamName}\n\nOverlay par TEAM ELIMINATED banner show hoga.\nPoints table me team eliminated mark rahega.`);
   }catch(e){
     alert("TEAM ELIMINATION ERROR ❌\n\n"+(e.message||e));
   }
 }
 
 async function resetCurrentEliminations(){
-  if(window.__resetElimBusy) return;
-  if(!confirm("RESET CURRENT ELIMINATIONS?\n\nSirf ELIMINATED tag/banner remove hoga.\nKills, placement points, total points aur ranking same rahenge.")) return;
-  window.__resetElimBusy=true;
-  const btn=[...document.querySelectorAll("button")].find(b=>String(b.textContent).includes("RESET CURRENT ELIMINATIONS"));
-  if(btn){btn.disabled=true;btn.textContent="⏳ RESETTING…";}
   try{
+    if(!confirm("RESET CURRENT ELIMINATIONS?\n\nSirf ELIMINATED tag/banner remove hoga.\nKills, placement points, total points aur ranking same rahenge.")) return;
     sync();
     const now=Date.now();
     cfg.elimination_reset_at=now;
@@ -608,17 +566,13 @@ async function resetCurrentEliminations(){
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
     });
-    const saved=await setState(cfg);
-    cfg=__unwrapConfig(saved);
+    await setState(cfg);
     pingOverlay();
     render();
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
+    alert("CURRENT ELIMINATIONS RESET ✅\n\nSirf eliminated status hata hai.\nKills + placement points + total same rahenge.");
   }catch(e){
-    $("status").textContent="CURRENT RESET ERROR ❌";
     alert("CURRENT RESET ERROR ❌\n\n"+(e.message||e));
-  }finally{
-    window.__resetElimBusy=false;
-    if(btn){btn.disabled=false;btn.textContent="↻ RESET CURRENT ELIMINATIONS";}
   }
 }
 
@@ -630,12 +584,8 @@ async function resetFullPoints(){
   const btn=[...document.querySelectorAll("button")].find(b=>String(b.textContent).includes("FULL POINTS RESET"));
   if(btn){btn.disabled=true;btn.textContent="⏳ RESETTING…";}
   try{
-    // Refresh state AND capture the currently visible event IDs. This makes
-    // reset reliable even if the events RPC does not expose a usable timestamp.
-    const fresh=__unwrapConfig(await getState());
-    if(fresh && Array.isArray(fresh.teams)) cfg=fresh;
+    try{ const fresh=await getState(); if(fresh) cfg=fresh; }catch(_){}
     sync();
-
     const now=Date.now();
     cfg.match_reset_at=now;
     cfg.match_reset_nonce=String(now);
@@ -651,14 +601,26 @@ async function resetFullPoints(){
       t.placement_points=0;
       t.place_points=0;
     });
-
-    const saved=await setState(cfg);
-    cfg=__unwrapConfig(saved);
+    let saved=false,lastErr=null;
+    for(let attempt=1;attempt<=8;attempt++){
+      try{ await setState(cfg); saved=true; break; }
+      catch(e){
+        lastErr=e;
+        const msg=String(e?.message||e||"");
+        if(!/statement timeout|canceling statement|timeout|deadlock|lock/i.test(msg) || attempt===8) break;
+        await new Promise(r=>setTimeout(r,800*attempt));
+      }
+    }
+    if(!saved){
+      try{ const verify=await getState(); if(String(verify?.match_reset_nonce||"")===String(cfg.match_reset_nonce)) saved=true; }catch(_){}
+    }
+    if(!saved) throw lastErr || new Error("Cloud reset timed out. Retry once.");
     pingOverlay();
     render();
     $("status").textContent="FULL POINTS RESET DONE ✅ | Kills + Placement = 0";
+    alert("FULL POINTS RESET DONE ✅\n\nKills = 0\nPlacement = 0\nTotal = 0\n\nRoster safe hai.");
   }catch(e){
-    $("status").textContent="FULL RESET ERROR ❌";
+    $("status").textContent="FULL RESET RETRY NEEDED ❌";
     alert("FULL RESET ERROR ❌\n\n"+(e.message||e));
   }finally{
     __fullResetBusy=false;
@@ -687,9 +649,7 @@ function sync(){
 async function save(){
   try{
     sync();
-    const saved=await setState(cfg);
-    cfg=__unwrapConfig(saved);
-    render();
+    await setState(cfg);
     $("status").textContent="ROSTER SAVED TO CLOUD ✅ | Teams: "+cfg.teams.length;
     alert("Roster Saved ✅");
   }catch(e){
@@ -704,13 +664,13 @@ async function saveBroadcast(){
     group:$("bGroup").value.trim(),
     day:$("bDay").value.trim(),
     map:$("bMap").value.trim(),
-    remaining:+$("bRemaining").value||0
+    remaining:+$("bRemaining").value||0,
+    kill_feed_enabled: $("bKillFeed").checked
   };
-  cfg.show_kill_feed = $("bKillFeed").value !== "false";
   try{
     await setState(cfg);
     $("status").textContent="BROADCAST SETTINGS SAVED ✅";
-
+    alert("Broadcast Settings Saved ✅");
   }catch(e){
     alert("BROADCAST SAVE ERROR ❌\n"+(e.message||e));
   }
