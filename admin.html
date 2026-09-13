@@ -344,6 +344,13 @@ addEvent = async function(killer,victim,weapon){
   if(r.error) throw r.error;
   return r.data;
 };
+getEvents = async function(){
+  const r = await __KF_SB.rpc("kf_events", {
+    p_room_code: localStorage.getItem("kf_room") || "ADITYA8029"
+  });
+  if(r.error) throw r.error;
+  return r.data;
+};
 
 function esc(s){
   return String(s).replace(/[&<>"']/g,m=>({
@@ -577,8 +584,12 @@ async function manualEliminate(teamIndex){
 }
 
 async function resetCurrentEliminations(){
+  if(window.__resetElimBusy) return;
+  if(!confirm("RESET CURRENT ELIMINATIONS?\n\nSirf ELIMINATED tag/banner remove hoga.\nKills, placement points, total points aur ranking same rahenge.")) return;
+  window.__resetElimBusy=true;
+  const btn=[...document.querySelectorAll("button")].find(b=>String(b.textContent).includes("RESET CURRENT ELIMINATIONS"));
+  if(btn){btn.disabled=true;btn.textContent="⏳ RESETTING…";}
   try{
-    if(!confirm("RESET CURRENT ELIMINATIONS?\n\nSirf ELIMINATED tag/banner remove hoga.\nKills, placement points, total points aur ranking same rahenge.")) return;
     sync();
     const now=Date.now();
     cfg.elimination_reset_at=now;
@@ -589,13 +600,17 @@ async function resetCurrentEliminations(){
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
     });
-    await setState(cfg);
+    const saved=await setState(cfg);
+    cfg=__unwrapConfig(saved);
     pingOverlay();
     render();
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
-    alert("CURRENT ELIMINATIONS RESET ✅\n\nSirf eliminated status hata hai.\nKills + placement points + total same rahenge.");
   }catch(e){
+    $("status").textContent="CURRENT RESET ERROR ❌";
     alert("CURRENT RESET ERROR ❌\n\n"+(e.message||e));
+  }finally{
+    window.__resetElimBusy=false;
+    if(btn){btn.disabled=false;btn.textContent="↻ RESET CURRENT ELIMINATIONS";}
   }
 }
 
@@ -607,11 +622,23 @@ async function resetFullPoints(){
   const btn=[...document.querySelectorAll("button")].find(b=>String(b.textContent).includes("FULL POINTS RESET"));
   if(btn){btn.disabled=true;btn.textContent="⏳ RESETTING…";}
   try{
-    try{ const fresh=await getState(); if(fresh) cfg=fresh; }catch(_){}
+    // Refresh state AND capture the currently visible event IDs. This makes
+    // reset reliable even if the events RPC does not expose a usable timestamp.
+    const fresh=__unwrapConfig(await getState());
+    if(fresh && Array.isArray(fresh.teams)) cfg=fresh;
     sync();
+
+    let oldEventIds=[];
+    try{
+      const raw=await getEvents();
+      const arr=Array.isArray(raw) ? raw : (Array.isArray(raw?.events) ? raw.events : (Array.isArray(raw?.data) ? raw.data : []));
+      oldEventIds=arr.map(e=>e?.id).filter(v=>v!==undefined&&v!==null).map(String).slice(-500);
+    }catch(_){ }
+
     const now=Date.now();
     cfg.match_reset_at=now;
     cfg.match_reset_nonce=String(now);
+    cfg.match_reset_event_ids=oldEventIds;
     cfg.elimination_reset_at=now;
     cfg.elimination_reset_nonce=String(now);
     cfg.test_elimination=null;
@@ -624,26 +651,14 @@ async function resetFullPoints(){
       t.placement_points=0;
       t.place_points=0;
     });
-    let saved=false,lastErr=null;
-    for(let attempt=1;attempt<=8;attempt++){
-      try{ await setState(cfg); saved=true; break; }
-      catch(e){
-        lastErr=e;
-        const msg=String(e?.message||e||"");
-        if(!/statement timeout|canceling statement|timeout|deadlock|lock/i.test(msg) || attempt===8) break;
-        await new Promise(r=>setTimeout(r,800*attempt));
-      }
-    }
-    if(!saved){
-      try{ const verify=await getState(); if(String(verify?.match_reset_nonce||"")===String(cfg.match_reset_nonce)) saved=true; }catch(_){}
-    }
-    if(!saved) throw lastErr || new Error("Cloud reset timed out. Retry once.");
+
+    const saved=await setState(cfg);
+    cfg=__unwrapConfig(saved);
     pingOverlay();
     render();
     $("status").textContent="FULL POINTS RESET DONE ✅ | Kills + Placement = 0";
-    alert("FULL POINTS RESET DONE ✅\n\nKills = 0\nPlacement = 0\nTotal = 0\n\nRoster safe hai.");
   }catch(e){
-    $("status").textContent="FULL RESET RETRY NEEDED ❌";
+    $("status").textContent="FULL RESET ERROR ❌";
     alert("FULL RESET ERROR ❌\n\n"+(e.message||e));
   }finally{
     __fullResetBusy=false;
