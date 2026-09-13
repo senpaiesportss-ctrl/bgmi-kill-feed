@@ -474,21 +474,31 @@ async function savePlacement(teamIndex){
     const team=cfg.teams?.[teamIndex];
     if(!team) throw new Error("Team nahi mila.");
 
-    // FAST: use the already-loaded cloud state. Do not perform a second
-    // getState() round-trip and do not rebuild the entire 16-team DOM.
+    // CUMULATIVE PLACEMENT: every save adds the new placement points
+    // to the team's existing placement points.
+    // Example: old 2 + new 5 = 7.
+    const oldPlacement=Number(
+      team.placement_points ??
+      team.place_points ??
+      team.placement ??
+      0
+    ) || 0;
+
+    const newPlacement=oldPlacement + pts;
+
     team.placement_rank=rank;
-    team.placement=pts;
-    team.placement_points=pts;
-    team.place_points=pts;
-    // Do NOT overwrite team.total here. Kill totals are event-derived.
+    team.placement=newPlacement;
+    team.placement_points=newPlacement;
+    team.place_points=newPlacement;
+    // Do NOT overwrite team.total here. Kill totals remain separate.
 
     if(btn){btn.disabled=true;btn.textContent="SAVING…";}
     await __queueSetState(cfg);
 
     pingOverlay();
     const ptsEl=$("placePts"+teamIndex);
-    if(ptsEl) ptsEl.value=pts+" POINTS";
-    $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | #${rank} = ${pts} pts`;
+    if(ptsEl) ptsEl.value=newPlacement+" POINTS";
+    $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | +${pts} pts | PLACEMENT TOTAL = ${newPlacement} pts`;
   }catch(e){
     $("status").textContent="PLACEMENT SAVE FAILED ❌";
     alert("PLACEMENT SAVE ERROR ❌\n\n"+(e.message||e));
