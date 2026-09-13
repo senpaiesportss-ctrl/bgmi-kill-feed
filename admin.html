@@ -210,6 +210,7 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
       <div><div class="num">Day</div><input id="bDay" value="DAY 1"></div>
       <div><div class="num">Map</div><input id="bMap" value="ERANGEL"></div>
       <div><div class="num">Remaining</div><input id="bRemaining" type="number" value="16"></div>
+      <div><div class="num">Kill Feed Popup</div><select id="bKillFeed" style="width:100%;background:#070b11;color:#fff;border:1px solid #2a3544;border-radius:9px;padding:10px;outline:0"><option value="true">ON — SHOW POPUP</option><option value="false">OFF — HIDE POPUP</option></select></div>
     </div>
 
     <div class="actions">
@@ -290,16 +291,16 @@ function __sleep(ms){
 
 async function __setStateSafe(nextCfg){
   let lastErr;
-  for(let attempt=1; attempt<=4; attempt++){
+  for(let attempt=1; attempt<=6; attempt++){
     try{
       return await __cloudSetState(nextCfg);
     }catch(e){
       lastErr=e;
       const msg=String(e?.message||e||"");
       const transient =
-        /statement timeout|canceling statement|timeout|deadlock|lock/i.test(msg);
-      if(!transient || attempt===4) throw e;
-      await __sleep(700 * attempt);
+        /statement timeout|canceling statement|timeout|deadlock|lock|could not obtain/i.test(msg);
+      if(!transient || attempt===6) throw e;
+      await __sleep(500 * attempt);
     }
   }
   throw lastErr || new Error("Cloud state write failed.");
@@ -369,6 +370,7 @@ function load(){
   $("bDay").value=cfg.broadcast?.day||"DAY 1";
   $("bMap").value=cfg.broadcast?.map||"ERANGEL";
   $("bRemaining").value=cfg.broadcast?.remaining??16;
+  $("bKillFeed").value = cfg.show_kill_feed === false ? "false" : "true";
 
   $("url").textContent=location.origin+"/overlay";
   render();
@@ -658,6 +660,7 @@ async function saveBroadcast(){
     map:$("bMap").value.trim(),
     remaining:+$("bRemaining").value||0
   };
+  cfg.show_kill_feed = $("bKillFeed").value !== "false";
   try{
     await setState(cfg);
     $("status").textContent="BROADCAST SETTINGS SAVED ✅";
