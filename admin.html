@@ -464,21 +464,33 @@ function previewPlacement(teamIndex){
 
 async function savePlacement(teamIndex){
   try{
-    sync();
-    const team=cfg.teams[teamIndex];
-    if(!team) throw new Error("Team nahi mila.");
     const rank=Number($("placeRank"+teamIndex)?.value||0);
+    if(!rank) throw new Error("Placement rank select karo.");
     const pts=placementPointsForRank(rank);
+
+    // IMPORTANT: fetch the latest cloud state before changing placement.
+    // This prevents an old Admin screen from overwriting fresh kills/events.
+    let fresh=null;
+    try{ fresh=await getState(); }catch(_){}
+    if(fresh && Array.isArray(fresh.teams)) cfg=fresh;
+
+    const team=cfg.teams?.[teamIndex];
+    if(!team) throw new Error("Team nahi mila.");
+
     team.placement_rank=rank;
     team.placement=pts;
     team.placement_points=pts;
     team.place_points=pts;
-    await setState(cfg);
+
+    // Retry-safe cloud write. No full roster sync here, so placement cannot
+    // accidentally overwrite newer roster/kill data from another action.
+    await __setStateSafe(cfg);
     pingOverlay();
     render();
     $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | #${rank} = ${pts} pts`;
-    alert(`PLACEMENT SAVED ✅\n\n${team.name}\n#${rank} = ${pts} placement points\n\nYe points TOTAL me add rahenge jab tak FULL POINTS RESET nahi karoge.`);
+    alert(`PLACEMENT SAVED ✅\n\n${team.name}\n#${rank} = ${pts} placement points\n\nTOTAL me placement points add ho gaye.\nFULL POINTS RESET tak ye points rahenge.`);
   }catch(e){
+    $("status").textContent="PLACEMENT SAVE RETRY NEEDED ❌";
     alert("PLACEMENT SAVE ERROR ❌\n\n"+(e.message||e));
   }
 }
