@@ -1268,6 +1268,12 @@ function showKillFeed(
   raw
 ){
 
+  // Admin controls this without changing the overlay design.
+  if(c?.broadcast?.kill_feed_enabled === false){
+    hideFeed();
+    return;
+  }
+
   const events =
     sortedEvents(raw);
 
@@ -1980,126 +1986,82 @@ function checkEliminations(c, raw){
   }
 }
 
-let updating =
-  false;
+let updating = false;
+let cachedConfig = null;
+let cachedEvents = [];
+let lastStateFetch = 0;
+let refreshTimer = null;
 
-async function update(){
+async function update(opts = {}){
 
-  if(updating)
-    return;
-
+  if(updating) return;
   updating = true;
 
   try{
+    const now = performance.now();
+    const forceState = !!opts.forceState;
+    const forceEvents = opts.forceEvents !== false;
 
-    const [
-      state,
-      rawEvents
-    ] =
-      await Promise.all([
+    // State changes are relatively rare. Keep it cached so rapid kill events
+    // do not wait for a second RPC call every time. Realtime still refreshes it.
+    if(forceState || !cachedConfig || now - lastStateFetch > 4000){
+      const state = await getState();
+      cachedConfig = state?.config ?? state?.state ?? state;
+      lastStateFetch = now;
+    }
 
-        getState(),
-
-        getEvents()
-
-      ]);
-
-    const c =
-      state?.config ??
-      state?.state ??
-      state;
-
-    const events =
-      eventsAfterReset(
-        c,
+    if(forceEvents){
+      const rawEvents = await getEvents();
+      cachedEvents = eventsAfterReset(
+        cachedConfig,
         normalizeEvents(rawEvents)
       );
+    }
 
-    const b =
-      broadcast(c);
+    const c = cachedConfig || {};
+    const events = cachedEvents;
+    const b = broadcast(c);
 
-    $("matchTitle")
-      .textContent =
-      b.match;
+    $("matchTitle").textContent = b.match;
+    $("groupTitle").textContent = b.group;
+    $("dayTitle").textContent = b.day;
+    $("mapTitle").textContent = b.map;
+    $("mapMini").textContent = b.map;
 
-    $("groupTitle")
-      .textContent =
-      b.group;
-
-    $("dayTitle")
-      .textContent =
-      b.day;
-
-    $("mapTitle")
-      .textContent =
-      b.map;
-
-    $("mapMini")
-      .textContent =
-      b.map;
-
-    renderTable(
-      c,
-      events
-    );
-
-    showKillFeed(
-      c,
-      events
-    );
-
-    checkEliminations(
-      c,
-      events
-    );
-
-    $("loading")
-      .style.display =
-      "none";
+    renderTable(c, events);
+    showKillFeed(c, events);
+    checkEliminations(c, events);
+    $("loading").style.display = "none";
 
   }catch(err){
-
-    console.error(
-      "BGMI OVERLAY ERROR:",
-      err
-    );
-
-    $("status")
-      .textContent =
-      "LIVE DATA CONNECTION ERROR • RETRYING...";
-
-    $("loading")
-      .textContent =
-      "RECONNECTING...";
-
+    console.error("BGMI OVERLAY ERROR:", err);
+    $("status").textContent = "LIVE DATA CONNECTION ERROR • RETRYING...";
+    $("loading").textContent = "RECONNECTING...";
   }
 
   updating = false;
-
 }
 
-update();
-
-setInterval(
-  update,
-  1000
-);
-
+// Fast fallback polling for kill events. State is cached for 4 seconds.
+// Realtime/BroadcastChannel triggers an immediate refresh when available.
+update({forceState:true, forceEvents:true});
+setInterval(() => update({forceEvents:true}), 650);
 
 // Instant live trigger for state/event changes.
 // The existing 1-second polling remains as fallback.
 try{
+  const scheduleRealtimeRefresh = (forceState=false) => {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => update({forceState, forceEvents:true}), 80);
+  };
+
   sb.channel("bgmi-kill-feed-live-overlay")
     .on("postgres_changes", {
-      event:"*",
-      schema:"public",
-      table:"killfeed_state"
-    }, () => update())
+      event:"*", schema:"public", table:"killfeed_state"
+    }, () => scheduleRealtimeRefresh(true))
     .on("postgres_changes", {
-      event:"*",
-      schema:"public",
-      table:"killfeed_events"
-    }, () => update())
+      event:"*", schema:"public", table:"killfeed_events"
+    }, () => scheduleRealtimeRefresh(false))
     .subscribe();
 }catch(e){
   console.warn("Realtime trigger unavailable:", e);
@@ -2108,12 +2070,12 @@ try{
 try{
   if("BroadcastChannel" in window){
     const liveChannel = new BroadcastChannel("bgmi-kill-feed-live");
-    liveChannel.onmessage = () => update();
+    liveChannel.onmessage = () => update({forceEvents:true});
   }
 
   window.addEventListener("storage", e => {
     if(e.key === "kf_live_ping")
-      update();
+      update({forceEvents:true});
   });
 }catch(e){
   console.warn("Live trigger unavailable:", e);
