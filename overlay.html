@@ -1124,8 +1124,7 @@ function eventVictim(e){
 
 }
 
-function eventWeapon(e){
-
+function eventRawWeapon(e){
   return (
     e?.weapon ||
     e?.p_weapon ||
@@ -1134,7 +1133,21 @@ function eventWeapon(e){
     e?.data?.weapon ||
     "GUN"
   );
+}
 
+function manualEventMeta(e){
+  const raw=String(eventRawWeapon(e)||"");
+  const m=raw.match(/^__KF_MANUAL__(\d+)__(.*)$/);
+  if(!m) return null;
+  let weapon="GUN";
+  try{ weapon=decodeURIComponent(m[2]||"GUN") || "GUN"; }
+  catch(_){ weapon=m[2]||"GUN"; }
+  return {teamIndex:Number(m[1]),weapon};
+}
+
+function eventWeapon(e){
+  const meta=manualEventMeta(e);
+  return meta ? meta.weapon : eventRawWeapon(e);
 }
 
 function normalizeEvents(raw){
@@ -1289,11 +1302,15 @@ function showKillFeed(
   const weapon =
     eventWeapon(e);
 
+  const manualMeta = manualEventMeta(e);
+
   const killerTeam =
-    findTeam(
-      c,
-      killer
-    );
+    manualMeta && Number.isInteger(manualMeta.teamIndex)
+      ? teamsFromConfig(c)[manualMeta.teamIndex]
+      : findTeam(
+          c,
+          killer
+        );
 
   const victimTeam =
     findTeam(
@@ -1449,7 +1466,12 @@ function getKillCounts(
       continue;
 
     const killer = eventKiller(e);
-    const t = findTeam(c, killer);
+    const manualMeta = manualEventMeta(e);
+    const teams = teamsFromConfig(c);
+
+    const t = manualMeta && Number.isInteger(manualMeta.teamIndex)
+      ? teams[manualMeta.teamIndex]
+      : findTeam(c, killer);
 
     if(!t)
       continue;
