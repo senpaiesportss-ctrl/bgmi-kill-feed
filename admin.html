@@ -287,28 +287,29 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
 <script>
 let cfg={teams:[]};
 
-// LIVE FIX: serialize all cloud state writes and retry transient
-// PostgreSQL statement-timeout/row-lock errors instead of failing the match.
-const __cloudSetState = (typeof setState === "function") ? setState : null;
+// ULTRA-FAST cloud writer:
+// one serialized write at a time, short retry backoff, no long client-side waits.
+const __cloudSetState = (typeof window.setState === "function") ? window.setState :
+                        (typeof setState === "function" ? setState : null);
 let __stateWriteQueue = Promise.resolve();
 
-function __sleep(ms){
-  return new Promise(r=>setTimeout(r,ms));
-}
+function __sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 async function __setStateSafe(nextCfg){
-  if(typeof __cloudSetState !== "function") throw new Error("Cloud state writer load nahi hua. supabase.js check karo.");
+  if(typeof __cloudSetState !== "function")
+    throw new Error("Cloud state writer load nahi hua. supabase.js check karo.");
+
   let lastErr;
-  for(let attempt=1; attempt<=12; attempt++){
-    try{
-      return await __cloudSetState(nextCfg);
-    }catch(e){
+  // Fast path first. Only retry genuine transient DB lock/timeouts.
+  const waits=[0,250,600,1200];
+  for(let attempt=0; attempt<waits.length; attempt++){
+    if(waits[attempt]) await __sleep(waits[attempt]);
+    try{ return await __cloudSetState(nextCfg); }
+    catch(e){
       lastErr=e;
       const msg=String(e?.message||e||"");
-      const transient =
-        /statement timeout|canceling statement|timeout|deadlock|lock|could not obtain/i.test(msg);
-      if(!transient || attempt===12) throw e;
-      await __sleep(Math.min(2500, 300 * attempt));
+      const transient=/statement timeout|canceling statement|timeout|deadlock|lock|could not obtain/i.test(msg);
+      if(!transient || attempt===waits.length-1) throw e;
     }
   }
   throw lastErr || new Error("Cloud state write failed.");
@@ -320,6 +321,7 @@ function __queueSetState(nextCfg){
   return job;
 }
 
+// Keep the original Supabase bridge intact; queue only serializes writes.
 window.setState=__queueSetState;
 
 const $=x=>document.getElementById(x);
@@ -464,35 +466,34 @@ function previewPlacement(teamIndex){
 }
 
 async function savePlacement(teamIndex){
+  const btn=document.querySelector(`[onclick="savePlacement(${teamIndex})"]`);
   try{
     const rank=Number($("placeRank"+teamIndex)?.value||0);
     if(!rank) throw new Error("Placement rank select karo.");
     const pts=placementPointsForRank(rank);
-
-    // IMPORTANT: fetch the latest cloud state before changing placement.
-    // This prevents an old Admin screen from overwriting fresh kills/events.
-    let fresh=null;
-    try{ fresh=await getState(); }catch(_){}
-    if(fresh && Array.isArray(fresh.teams)) cfg=fresh;
-
     const team=cfg.teams?.[teamIndex];
     if(!team) throw new Error("Team nahi mila.");
 
+    // FAST: use the already-loaded cloud state. Do not perform a second
+    // getState() round-trip and do not rebuild the entire 16-team DOM.
     team.placement_rank=rank;
     team.placement=pts;
     team.placement_points=pts;
     team.place_points=pts;
+    // Do NOT overwrite team.total here. Kill totals are event-derived.
 
-    // Retry-safe cloud write. No full roster sync here, so placement cannot
-    // accidentally overwrite newer roster/kill data from another action.
-    await __setStateSafe(cfg);
+    if(btn){btn.disabled=true;btn.textContent="SAVING…";}
+    await __queueSetState(cfg);
+
     pingOverlay();
-    render();
+    const ptsEl=$("placePts"+teamIndex);
+    if(ptsEl) ptsEl.value=pts+" POINTS";
     $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | #${rank} = ${pts} pts`;
-    alert(`PLACEMENT SAVED ✅\n\n${team.name}\n#${rank} = ${pts} placement points\n\nTOTAL me placement points add ho gaye.\nFULL POINTS RESET tak ye points rahenge.`);
   }catch(e){
-    $("status").textContent="PLACEMENT SAVE RETRY NEEDED ❌";
+    $("status").textContent="PLACEMENT SAVE FAILED ❌";
     alert("PLACEMENT SAVE ERROR ❌\n\n"+(e.message||e));
+  }finally{
+    if(btn && btn.isConnected){btn.disabled=false;btn.textContent="SAVE PLACEMENT POINTS → TOTAL";}
   }
 }
 
@@ -537,7 +538,6 @@ const taggedWeapon="__KF_MANUAL__"+teamIndex+"__"+encodeURIComponent(weapon);
 
 async function manualEliminate(teamIndex){
   try{
-    sync();
     const team=cfg.teams[teamIndex];
     if(!team) throw new Error("Team nahi mila.");
     const teamName=String(team.name||"").trim();
@@ -555,9 +555,8 @@ async function manualEliminate(teamIndex){
       expires_at:Date.now()+60000
     };
 
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     pingOverlay();
-    render();
 
     $("status").textContent=`TEAM ELIMINATED SENT ✅ | ${teamName}`;
     alert(`TEAM ELIMINATED ✅\n\n${teamName}\n\nOverlay par TEAM ELIMINATED banner show hoga.\nPoints table me team eliminated mark rahega.`);
@@ -569,7 +568,6 @@ async function manualEliminate(teamIndex){
 async function resetCurrentEliminations(){
   try{
     if(!confirm("RESET CURRENT ELIMINATIONS?\n\nSirf ELIMINATED tag/banner remove hoga.\nKills, placement points, total points aur ranking same rahenge.")) return;
-    sync();
     const now=Date.now();
     cfg.elimination_reset_at=now;
     cfg.elimination_reset_nonce=String(now);
@@ -579,7 +577,7 @@ async function resetCurrentEliminations(){
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
     });
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     pingOverlay();
     render();
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
@@ -614,20 +612,7 @@ async function resetFullPoints(){
       t.placement_points=0;
       t.place_points=0;
     });
-    let saved=false,lastErr=null;
-    for(let attempt=1;attempt<=8;attempt++){
-      try{ await __setStateSafe(cfg); saved=true; break; }
-      catch(e){
-        lastErr=e;
-        const msg=String(e?.message||e||"");
-        if(!/statement timeout|canceling statement|timeout|deadlock|lock/i.test(msg) || attempt===8) break;
-        await new Promise(r=>setTimeout(r,800*attempt));
-      }
-    }
-    if(!saved){
-      try{ const verify=await getState(); if(String(verify?.match_reset_nonce||"")===String(cfg.match_reset_nonce)) saved=true; }catch(_){}
-    }
-    if(!saved) throw lastErr || new Error("Cloud reset timed out. Retry once.");
+    await __queueSetState(cfg);
     pingOverlay();
     render();
     $("status").textContent="FULL POINTS RESET DONE ✅ | Kills + Placement = 0";
@@ -662,7 +647,7 @@ function sync(){
 async function save(){
   try{
     sync();
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     $("status").textContent="ROSTER SAVED TO CLOUD ✅ | Teams: "+cfg.teams.length;
     alert("Roster Saved ✅");
   }catch(e){
@@ -681,7 +666,7 @@ async function saveBroadcast(){
     kill_feed_enabled: $("bKillFeed").checked
   };
   try{
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     $("status").textContent="BROADCAST SETTINGS SAVED ✅";
     alert("Broadcast Settings Saved ✅");
   }catch(e){
@@ -697,7 +682,7 @@ async function saveRegion(){
       width:+$("w").value,
       height:+$("h").value
     };
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     $("status").textContent="CAPTURE REGION SAVED ✅";
     alert("Region Saved ✅");
   }catch(e){
@@ -760,7 +745,7 @@ async function testKill(){
       throw new Error("Killer/Victim player roster me nahi mila.");
     }
 
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     await addEvent(
       killerTeam.players[0],
       victimTeam.players[0],
@@ -809,7 +794,7 @@ async function testElimination(){
     victimTeam.team.eliminated=true;
     victimTeam.team.status="ELIMINATED";
     victimTeam.team.alive=0;
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
 
     for(let i=0;i<4;i++){
       await addEvent(
@@ -821,7 +806,7 @@ async function testElimination(){
 
     // Keep the flag fresh for the overlay while the four test events arrive.
     cfg.test_elimination.expires_at=Date.now()+60000;
-    await __setStateSafe(cfg);
+    await __queueSetState(cfg);
     pingOverlay();
 
     $("status").textContent=
