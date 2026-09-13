@@ -1176,10 +1176,15 @@ function normalizeEvents(raw){
 
 function eventsAfterReset(c, events){
   const resetAt = Number(c?.match_reset_at || 0);
-  if(!resetAt) return events;
+  const resetIds = new Set((Array.isArray(c?.match_reset_event_ids) ? c.match_reset_event_ids : []).map(String));
+  if(!resetAt && !resetIds.size) return events;
   return events.filter(e => {
+    const id = e?.id;
+    if(id !== undefined && id !== null && resetIds.has(String(id))) return false;
     const t = eventTime(e);
-    return !t || t >= resetAt;
+    // If the event has no usable timestamp, the reset-event-ID list above is
+    // the authority. Otherwise keep only events created at/after reset.
+    return !resetAt || !t || t >= resetAt;
   });
 }
 
@@ -2043,7 +2048,7 @@ async function update(opts = {}){
 // Fast fallback polling for kill events. State is cached for 4 seconds.
 // Realtime/BroadcastChannel triggers an immediate refresh when available.
 update({forceState:true, forceEvents:true});
-setInterval(() => update({forceEvents:true}), 900);
+setInterval(() => update({forceEvents:true}), 500);
 
 // Instant live trigger for state/event changes.
 // The existing 1-second polling remains as fallback.
