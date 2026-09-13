@@ -2018,7 +2018,7 @@ async function update(opts = {}){
 // Lightweight fallback polling. Realtime triggers immediate refreshes; polling is only a safety net.
 // Realtime/BroadcastChannel triggers an immediate refresh when available.
 update({forceState:true, forceEvents:true});
-setInterval(() => update({forceEvents:true}), 1500);
+setInterval(() => update({forceEvents:true}), 1000);
 
 // Instant live trigger for state/event changes.
 // Polling is intentionally slower to avoid hammering Supabase and OBS browser rendering.
@@ -2028,14 +2028,44 @@ try{
     refreshTimer = setTimeout(() => update({forceState, forceEvents:true}), 40);
   };
 
-  sb.channel("bgmi-kill-feed-live-overlay")
+  const liveChannel = sb.channel("bgmi-kill-feed-live-overlay");
+
+  liveChannel
     .on("postgres_changes", {
       event:"*", schema:"public", table:"killfeed_state"
-    }, () => scheduleRealtimeRefresh(true))
+    }, payload => {
+      // State changes (placement/elimination/broadcast/reset) are applied
+      // immediately from realtime instead of waiting for the next poll.
+      const next = payload?.new?.config;
+      if(next && typeof next === "object"){
+        cachedConfig = next;
+        lastStateFetch = performance.now();
+      }
+      scheduleRealtimeRefresh(false);
+    })
     .on("postgres_changes", {
-      event:"*", schema:"public", table:"killfeed_events"
-    }, () => scheduleRealtimeRefresh(false))
-    .subscribe();
+      event:"INSERT", schema:"public", table:"killfeed_events"
+    }, payload => {
+      // Use the realtime INSERT directly. This makes the kill feed/scoreboard
+      // react immediately and avoids waiting for a full events RPC round trip.
+      const incoming = payload?.new;
+      if(incoming && typeof incoming === "object"){
+        const merged = uniqueEvents([incoming, ...cachedEvents]);
+        cachedEvents = eventsAfterReset(cachedConfig || {}, merged);
+        renderTable(cachedConfig || {}, cachedEvents);
+        showKillFeed(cachedConfig || {}, cachedEvents);
+        checkEliminations(cachedConfig || {}, cachedEvents);
+      }else{
+        scheduleRealtimeRefresh(false);
+      }
+    })
+    .subscribe(status => {
+      if(status === "SUBSCRIBED"){
+        // Reconcile once after realtime is live so no event is missed between
+        // initial page load and subscription.
+        scheduleRealtimeRefresh(true);
+      }
+    });
 }catch(e){
   console.warn("Realtime trigger unavailable:", e);
 }
