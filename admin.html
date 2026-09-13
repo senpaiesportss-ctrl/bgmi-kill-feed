@@ -555,8 +555,16 @@ async function manualEliminate(teamIndex){
       expires_at:Date.now()+60000
     };
 
+    // FIRE THE STREAM SIGNAL FIRST — the banner should not wait for the cloud RPC.
+    pingOverlay("elimination", {
+      team:teamName,
+      logo:team.logo||"",
+      nonce:Date.now(),
+      expires_at:Date.now()+5000
+    });
+
+    // Cloud persistence happens after the instant stream signal.
     await __queueSetState(cfg);
-    pingOverlay();
 
     $("status").textContent=`TEAM ELIMINATED SENT ✅ | ${teamName}`;
     alert(`TEAM ELIMINATED ✅\n\n${teamName}\n\nOverlay par TEAM ELIMINATED banner show hoga.\nPoints table me team eliminated mark rahega.`);
@@ -707,13 +715,15 @@ function logo(i){
 }
 
 /* Wake any open /overlay tab instantly after an Admin action. */
-function pingOverlay(){
+function pingOverlay(type="refresh", data=null){
   try{
-    localStorage.setItem("kf_live_ping",String(Date.now()));
+    const msg={type, t:Date.now(), data};
+    // Broadcast immediately. Do NOT wait for Supabase RPC.
+    localStorage.setItem("kf_live_ping", JSON.stringify(msg));
     if("BroadcastChannel" in window){
       const bc=new BroadcastChannel("bgmi-kill-feed-live");
-      bc.postMessage({t:Date.now()});
-      setTimeout(()=>bc.close(),100);
+      bc.postMessage(msg);
+      setTimeout(()=>bc.close(),50);
     }
   }catch(e){}
 }
@@ -794,6 +804,14 @@ async function testElimination(){
     victimTeam.team.eliminated=true;
     victimTeam.team.status="ELIMINATED";
     victimTeam.team.alive=0;
+    // FIRE TEST ELIMINATION TO OBS IMMEDIATELY.
+    pingOverlay("elimination", {
+      team:victimTeam.team.name,
+      logo:victimTeam.team.logo||"",
+      nonce:cfg.test_elimination.nonce,
+      expires_at:Date.now()+5000
+    });
+
     await __queueSetState(cfg);
 
     for(let i=0;i<4;i++){
