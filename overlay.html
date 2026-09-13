@@ -1079,17 +1079,11 @@ function findTeam(
 }
 
 function eventTime(e){
-
-  return (
-    new Date(
-      e?.time ||
-      e?.created_at ||
-      e?.timestamp ||
-      0
-    ).getTime()
-    || 0
-  );
-
+  const raw = e?.time ?? e?.created_at ?? e?.timestamp ?? 0;
+  if(typeof raw === "number") return raw < 100000000000 ? raw * 1000 : raw;
+  const n = Number(raw);
+  if(Number.isFinite(n) && n > 0) return n < 100000000000 ? n * 1000 : n;
+  return new Date(raw || 0).getTime() || 0;
 }
 
 function eventKiller(e){
@@ -1179,11 +1173,11 @@ function eventsAfterReset(c, events){
   const resetIds = new Set((Array.isArray(c?.match_reset_event_ids) ? c.match_reset_event_ids : []).map(String));
   if(!resetAt && !resetIds.size) return events;
   return events.filter(e => {
-    const id = e?.id;
+    const id=e?.id;
     if(id !== undefined && id !== null && resetIds.has(String(id))) return false;
-    const t = eventTime(e);
-    // If the event has no usable timestamp, the reset-event-ID list above is
-    // the authority. Otherwise keep only events created at/after reset.
+    const t=eventTime(e);
+    // Timestamped events are authoritative. Untimestamped events are kept
+    // here and handled by the reset-baseline ledger below.
     return !resetAt || !t || t >= resetAt;
   });
 }
@@ -1431,74 +1425,47 @@ function showKillFeed(
 // The events RPC may return only a rolling/latest window; therefore we
 // NEVER rebuild the scoreboard from only the currently returned events.
 // Every event is counted once and kept until the Admin presses RESET MATCH.
-function getKillCounts(
-  c,
-  raw
-){
+function getKillCounts(c, raw){
+  const resetKey=String(c?.match_reset_nonce || c?.match_reset_at || "NO_RESET");
+  const resetAt=Number(c?.match_reset_at || 0);
+  const storageKey="bgmi_kill_ledger:"+ROOM;
+  const all=uniqueEvents(raw);
+  let ledger=null;
+  try{ ledger=JSON.parse(localStorage.getItem(storageKey)||"null"); }catch(e){ ledger=null; }
 
-  const resetKey = String(
-    c?.match_reset_nonce ||
-    c?.match_reset_at ||
-    "NO_RESET"
-  );
-
-  const storageKey = "bgmi_kill_ledger:" + ROOM;
-  let ledger = {
-    resetKey,
-    seen: {},
-    counts: {}
-  };
-
-  try{
-    const saved = JSON.parse(
-      localStorage.getItem(storageKey) || "null"
-    );
-
-    if(saved && saved.resetKey === resetKey){
-      ledger = saved;
-    }else{
-      localStorage.removeItem(storageKey);
+  const freshReset=!ledger || ledger.resetKey!==resetKey;
+  if(freshReset){
+    ledger={resetKey,seen:{},counts:{}};
+    // Establish a zero-count baseline for events already present at reset.
+    // Timestamped events after reset remain eligible to count immediately.
+    for(const e of all){
+      const t=eventTime(e);
+      if(!t || (resetAt && t < resetAt)) ledger.seen[eventKey(e)]=1;
     }
-  }catch(e){}
-
-  const events = eventsAfterReset(
-    c,
-    uniqueEvents(raw)
-  );
-
-  for(const e of events){
-
-    const key = eventKey(e);
-
-    if(!key || ledger.seen[key])
-      continue;
-
-    const killer = eventKiller(e);
-    const manualMeta = manualEventMeta(e);
-    const teams = teamsFromConfig(c);
-
-    const t = manualMeta && Number.isInteger(manualMeta.teamIndex)
-      ? teams[manualMeta.teamIndex]
-      : findTeam(c, killer);
-
-    if(!t)
-      continue;
-
-    const name = teamName(t);
-
-    ledger.counts[name] =
-      (Number(ledger.counts[name]) || 0) + 1;
-
-    ledger.seen[key] = 1;
   }
 
-  try{
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(ledger)
-    );
-  }catch(e){}
+  const events=eventsAfterReset(c,all);
+  for(const e of events){
+    const key=eventKey(e);
+    if(!key || ledger.seen[key]) continue;
+    const t=eventTime(e);
+    if(freshReset && !t){
+      // An event without a timestamp that was not in the first baseline fetch
+      // is treated as new from this point onward.
+    }
+    const killer=eventKiller(e);
+    const manualMeta=manualEventMeta(e);
+    const teams=teamsFromConfig(c);
+    const team=manualMeta && Number.isInteger(manualMeta.teamIndex)
+      ? teams[manualMeta.teamIndex]
+      : findTeam(c,killer);
+    if(!team){ ledger.seen[key]=1; continue; }
+    const name=teamName(team);
+    ledger.counts[name]=(Number(ledger.counts[name])||0)+1;
+    ledger.seen[key]=1;
+  }
 
+  try{ localStorage.setItem(storageKey,JSON.stringify(ledger)); }catch(e){}
   return ledger.counts;
 }
 
@@ -1535,18 +1502,21 @@ function getEliminationState(c, raw){
     }
   }catch(e){}
 
-  const baseEvents = eventsAfterReset(
-    c,
-    uniqueEvents(raw)
-  );
-
+  const allEvents = uniqueEvents(raw);
+  const baseEvents = eventsAfterReset(c, allEvents);
   const elimResetAt = Number(c?.elimination_reset_at || 0);
-  const events = elimResetAt
-    ? baseEvents.filter(e => {
-        const t = eventTime(e);
-        return !t || t >= elimResetAt;
-      })
-    : baseEvents;
+  const freshElimReset = !ledger || ledger.resetKey !== resetKey;
+  if(freshElimReset && elimResetAt){
+    // Baseline victims that existed before the elimination reset.
+    for(const e of allEvents){
+      const t=eventTime(e);
+      if(!t || t < elimResetAt) ledger.seen[eventKey(e)]=1;
+    }
+  }
+  const events = elimResetAt ? baseEvents.filter(e => {
+    const t=eventTime(e);
+    return !t || t >= elimResetAt;
+  }) : baseEvents;
 
   for(const e of events){
 
