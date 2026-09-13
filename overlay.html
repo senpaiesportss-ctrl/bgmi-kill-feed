@@ -1466,7 +1466,15 @@ function getKillCounts(c, raw){
   }
 
   try{ localStorage.setItem(storageKey,JSON.stringify(ledger)); }catch(e){}
-  return ledger.counts;
+
+  // Admin can remove accidental kills without deleting historical events.
+  // Negative adjustments are clamped to zero at display time.
+  const adjusted={...ledger.counts};
+  const adj=c?.kill_adjustments || {};
+  for(const [teamName,value] of Object.entries(adj)){
+    adjusted[teamName]=Math.max(0,(Number(adjusted[teamName])||0)+(Number(value)||0));
+  }
+  return adjusted;
 }
 
 function getEliminationState(c, raw){
@@ -1616,6 +1624,10 @@ function broadcast(c){
 
 }
 
+function manualPoints(t){
+  return num(t?.manual_points || 0);
+}
+
 function renderTable(
   c,
   raw
@@ -1670,15 +1682,19 @@ function renderTable(
         const placement =
           placementPoints(t);
 
+        const manual =
+          manualPoints(t);
+
         return {
 
           t,
           name,
           kills:k,
           placement,
+          manual,
 
           total:
-            k + placement,
+            k + placement + manual,
 
           index
 
@@ -1760,7 +1776,7 @@ function renderTable(
               ${r.placement}
             </div>
 
-            <div class="pts">
+            <div class="pts" title="Kills ${r.kills} + Placement ${r.placement} + Manual ${r.manual}">
               ${r.total}
             </div>
 
