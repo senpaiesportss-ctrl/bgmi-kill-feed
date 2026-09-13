@@ -289,7 +289,7 @@ let cfg={teams:[]};
 
 // LIVE FIX: serialize all cloud state writes and retry transient
 // PostgreSQL statement-timeout/row-lock errors instead of failing the match.
-const __cloudSetState = window.setState;
+const __cloudSetState = (typeof setState === "function") ? setState : null;
 let __stateWriteQueue = Promise.resolve();
 
 function __sleep(ms){
@@ -297,6 +297,7 @@ function __sleep(ms){
 }
 
 async function __setStateSafe(nextCfg){
+  if(typeof __cloudSetState !== "function") throw new Error("Cloud state writer load nahi hua. supabase.js check karo.");
   let lastErr;
   for(let attempt=1; attempt<=12; attempt++){
     try{
@@ -554,7 +555,7 @@ async function manualEliminate(teamIndex){
       expires_at:Date.now()+60000
     };
 
-    await setState(cfg);
+    await __setStateSafe(cfg);
     pingOverlay();
     render();
 
@@ -578,7 +579,7 @@ async function resetCurrentEliminations(){
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
     });
-    await setState(cfg);
+    await __setStateSafe(cfg);
     pingOverlay();
     render();
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
@@ -615,7 +616,7 @@ async function resetFullPoints(){
     });
     let saved=false,lastErr=null;
     for(let attempt=1;attempt<=8;attempt++){
-      try{ await setState(cfg); saved=true; break; }
+      try{ await __setStateSafe(cfg); saved=true; break; }
       catch(e){
         lastErr=e;
         const msg=String(e?.message||e||"");
@@ -661,7 +662,7 @@ function sync(){
 async function save(){
   try{
     sync();
-    await setState(cfg);
+    await __setStateSafe(cfg);
     $("status").textContent="ROSTER SAVED TO CLOUD ✅ | Teams: "+cfg.teams.length;
     alert("Roster Saved ✅");
   }catch(e){
@@ -680,7 +681,7 @@ async function saveBroadcast(){
     kill_feed_enabled: $("bKillFeed").checked
   };
   try{
-    await setState(cfg);
+    await __setStateSafe(cfg);
     $("status").textContent="BROADCAST SETTINGS SAVED ✅";
     alert("Broadcast Settings Saved ✅");
   }catch(e){
@@ -696,7 +697,7 @@ async function saveRegion(){
       width:+$("w").value,
       height:+$("h").value
     };
-    await setState(cfg);
+    await __setStateSafe(cfg);
     $("status").textContent="CAPTURE REGION SAVED ✅";
     alert("Region Saved ✅");
   }catch(e){
@@ -759,7 +760,7 @@ async function testKill(){
       throw new Error("Killer/Victim player roster me nahi mila.");
     }
 
-    await setState(cfg);
+    await __setStateSafe(cfg);
     await addEvent(
       killerTeam.players[0],
       victimTeam.players[0],
@@ -808,7 +809,7 @@ async function testElimination(){
     victimTeam.team.eliminated=true;
     victimTeam.team.status="ELIMINATED";
     victimTeam.team.alive=0;
-    await setState(cfg);
+    await __setStateSafe(cfg);
 
     for(let i=0;i<4;i++){
       await addEvent(
@@ -820,7 +821,7 @@ async function testElimination(){
 
     // Keep the flag fresh for the overlay while the four test events arrive.
     cfg.test_elimination.expires_at=Date.now()+60000;
-    await setState(cfg);
+    await __setStateSafe(cfg);
     pingOverlay();
 
     $("status").textContent=
