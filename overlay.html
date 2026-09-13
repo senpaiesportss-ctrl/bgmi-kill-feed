@@ -2071,14 +2071,40 @@ try{
 }
 
 try{
+  const instantElimination = (data) => {
+    const d=data||{};
+    const name=String(d.team||"").trim();
+    if(!name) return;
+
+    // Show the banner locally FIRST. No Supabase round-trip required.
+    const teams=teamsFromConfig(cachedConfig||{});
+    const target=eliminationNorm(name);
+    const team=
+      teams.find(t=>eliminationNorm(teamName(t))===target) ||
+      {name:name, short:name, logo:String(d.logo||"")};
+
+    if(d.logo && !team.logo) team.logo=d.logo;
+    showElimination(team);
+  };
+
   if("BroadcastChannel" in window){
     const liveChannel = new BroadcastChannel("bgmi-kill-feed-live");
-    liveChannel.onmessage = () => update({forceEvents:true});
+    liveChannel.onmessage = msg => {
+      const m=msg?.data||{};
+      if(m.type==="elimination") instantElimination(m.data);
+      else update({forceEvents:true});
+    };
   }
 
   window.addEventListener("storage", e => {
-    if(e.key === "kf_live_ping")
+    if(e.key !== "kf_live_ping") return;
+    try{
+      const m=JSON.parse(e.newValue||"{}");
+      if(m.type==="elimination") instantElimination(m.data);
+      else update({forceEvents:true});
+    }catch(_){
       update({forceEvents:true});
+    }
   });
 }catch(e){
   console.warn("Live trigger unavailable:", e);
