@@ -2015,17 +2015,17 @@ async function update(opts = {}){
   updating = false;
 }
 
-// Fast fallback polling for kill events. State is cached for 4 seconds.
+// Lightweight fallback polling. Realtime triggers immediate refreshes; polling is only a safety net.
 // Realtime/BroadcastChannel triggers an immediate refresh when available.
 update({forceState:true, forceEvents:true});
-setInterval(() => update({forceEvents:true}), 500);
+setInterval(() => update({forceEvents:true}), 1500);
 
 // Instant live trigger for state/event changes.
-// The existing 1-second polling remains as fallback.
+// Polling is intentionally slower to avoid hammering Supabase and OBS browser rendering.
 try{
   const scheduleRealtimeRefresh = (forceState=false) => {
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => update({forceState, forceEvents:true}), 80);
+    refreshTimer = setTimeout(() => update({forceState, forceEvents:true}), 40);
   };
 
   sb.channel("bgmi-kill-feed-live-overlay")
