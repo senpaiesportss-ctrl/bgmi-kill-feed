@@ -316,6 +316,35 @@ window.setState=__queueSetState;
 
 const $=x=>document.getElementById(x);
 
+// FINAL CLOUD BRIDGE: keep Admin independent of any old supabase.js helper implementation.
+// It also accepts both direct config and {config: ...} RPC responses.
+const __KF_URL = window.KF_CONFIG?.SUPABASE_URL || "https://nuywberanlfvngjnjcpx.supabase.co";
+const __KF_KEY = window.KF_CONFIG?.SUPABASE_PUBLISHABLE_KEY || "";
+const __KF_SB = supabase.createClient(__KF_URL, __KF_KEY);
+function __unwrapConfig(v){
+  if(v && typeof v === "object" && v.config && typeof v.config === "object") return v.config;
+  if(v && typeof v === "object" && v.state && typeof v.state === "object") return v.state;
+  return v || {teams:[]};
+}
+getState = async function(){
+  const r = await __KF_SB.rpc("kf_get_state", {p_room_code: localStorage.getItem("kf_room") || "ADITYA8029"});
+  if(r.error) throw r.error;
+  return __unwrapConfig(r.data);
+};
+setState = async function(next){
+  const r = await __KF_SB.rpc("kf_set_state", {p_room_code: localStorage.getItem("kf_room") || "ADITYA8029", p_config: next});
+  if(r.error) throw r.error;
+  return __unwrapConfig(r.data);
+};
+addEvent = async function(killer,victim,weapon){
+  const r = await __KF_SB.rpc("kf_add_event", {
+    p_room_code: localStorage.getItem("kf_room") || "ADITYA8029",
+    p_killer: killer, p_victim: victim, p_weapon: weapon || "GUN"
+  });
+  if(r.error) throw r.error;
+  return r.data;
+};
+
 function esc(s){
   return String(s).replace(/[&<>"']/g,m=>({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
@@ -327,7 +356,7 @@ async function login(){
   if(!r){$("err").textContent="Room code enter karo.";return;}
   localStorage.setItem("kf_room",r);
   try{
-    cfg=await getState();
+    cfg=__unwrapConfig(await getState());
     $("login").classList.add("hide");
     $("app").classList.remove("hide");
     load();
@@ -342,7 +371,7 @@ async function boot(){
   const r=localStorage.getItem("kf_room");
   if(!r){$("status").textContent="Room code required.";return;}
   try{
-    cfg=await getState();
+    cfg=__unwrapConfig(await getState());
     if(!cfg) throw new Error("Cloud se config nahi mili.");
     $("login").classList.add("hide");
     $("app").classList.remove("hide");
@@ -470,7 +499,7 @@ async function savePlacement(teamIndex){
     pingOverlay();
     render();
     $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | #${rank} = ${pts} pts`;
-    alert(`PLACEMENT SAVED ✅\n\n${team.name}\n#${rank} = ${pts} placement points\n\nYe points TOTAL me add rahenge jab tak FULL POINTS RESET nahi karoge.`);
+
   }catch(e){
     alert("PLACEMENT SAVE ERROR ❌\n\n"+(e.message||e));
   }
@@ -510,7 +539,7 @@ const taggedWeapon="__KF_MANUAL__"+teamIndex+"__"+encodeURIComponent(weapon);
     await addEvent(killer,victim,taggedWeapon);
     pingOverlay();
     $("status").textContent=`MANUAL KILL SENT ✅ | TEAM ${teamIndex+1} | ${killer} → ${victim} | Points updated`;
-    alert(`Kill Added ✅\n\nTEAM ${teamIndex+1}\n${killer} → ${weapon} → ${victim}\n\nPoints table automatically update hoga.`);
+
   }catch(e){
     alert("MANUAL KILL ERROR ❌\n\n"+(e.message||e));
   }
@@ -643,7 +672,9 @@ function sync(){
 async function save(){
   try{
     sync();
-    await setState(cfg);
+    const saved=await setState(cfg);
+    cfg=__unwrapConfig(saved);
+    render();
     $("status").textContent="ROSTER SAVED TO CLOUD ✅ | Teams: "+cfg.teams.length;
     alert("Roster Saved ✅");
   }catch(e){
@@ -664,7 +695,7 @@ async function saveBroadcast(){
   try{
     await setState(cfg);
     $("status").textContent="BROADCAST SETTINGS SAVED ✅";
-    alert("Broadcast Settings Saved ✅");
+
   }catch(e){
     alert("BROADCAST SAVE ERROR ❌\n"+(e.message||e));
   }
