@@ -126,6 +126,11 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
   .region{grid-template-columns:1fr 1fr}.broadcast{grid-template-columns:1fr}
   .heroLogo{width:78px;height:78px}.heroTitle{font-size:25px}
 }
+
+.manualScoreBox{margin-top:12px;padding:12px;border:1px solid rgba(54,217,255,.18);border-radius:12px;background:rgba(5,15,30,.55)}
+.manualScoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:9px}
+.manualScoreBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.manualScoreBtns .btn{flex:1;min-width:150px}
 </style>
 </head>
 
@@ -434,6 +439,26 @@ function render(){
         <button class="btn placementSave" onclick="savePlacement(${i})">SAVE PLACEMENT POINTS → TOTAL</button>
       </div>
 
+      <div class="manualScoreBox">
+        <div class="placementTitle">🎯 MANUAL POINTS + KILL CONTROL</div>
+        <div class="manualScoreGrid">
+          <div>
+            <div class="num">MANUAL POINTS</div>
+            <input id="manualPts${i}" type="number" value="${Number(t.manual_points||0)}" min="0" step="1">
+          </div>
+          <div>
+            <div class="num">CURRENT TOTAL PREVIEW</div>
+            <input id="scoreTotal${i}" value="${Number(t.manual_points||0)+Number(t.placement_points||t.place_points||t.placement||0)} + KILLS" readonly>
+          </div>
+        </div>
+        <div class="manualScoreBtns">
+          <button class="btn gold" onclick="saveManualPoints(${i})">＋ ADD MANUAL POINTS</button>
+          <button class="btn red" onclick="removeManualPoints(${i})">− REMOVE MANUAL POINTS</button>
+          <button class="btn red" onclick="removeKill(${i})">− REMOVE 1 KILL</button>
+        </div>
+        <div class="mut" style="margin-top:7px">Kills, Placement aur Manual Points alag rahenge. TOTAL = KILLS + PLACEMENT + MANUAL POINTS.</div>
+      </div>
+
       <div class="actions">
         <button class="btn" onclick="player(${i})">＋ Player</button>
         <button class="btn red" onclick="cfg.teams.splice(${i},1);render()">Remove</button>
@@ -546,6 +571,59 @@ const taggedWeapon="__KF_MANUAL__"+teamIndex+"__"+encodeURIComponent(weapon);
   }
 }
 
+async function saveManualPoints(teamIndex){
+  try{
+    const team=cfg.teams?.[teamIndex];
+    if(!team) throw new Error("Team nahi mila.");
+    const input=$("manualPts"+teamIndex);
+    const value=Math.max(0,Number(input?.value||0));
+    team.manual_points=value;
+    await __queueSetState(cfg);
+    pingOverlay();
+    render();
+    $("status").textContent=`MANUAL POINTS SAVED ✅ | ${team.name} | ${value} pts`;
+  }catch(e){
+    alert("MANUAL POINTS ERROR ❌\n\n"+(e.message||e));
+  }
+}
+
+async function removeManualPoints(teamIndex){
+  try{
+    const team=cfg.teams?.[teamIndex];
+    if(!team) throw new Error("Team nahi mila.");
+    const current=Math.max(0,Number(team.manual_points||0));
+    const input=$("manualPts"+teamIndex);
+    const requested=Math.max(0,Number(input?.value||0));
+    const removeBy=requested>0 ? requested : 1;
+    team.manual_points=Math.max(0,current-removeBy);
+    await __queueSetState(cfg);
+    pingOverlay();
+    render();
+    $("status").textContent=`MANUAL POINTS REMOVED ✅ | ${team.name} | -${Math.min(removeBy,current)} pts`;
+  }catch(e){
+    alert("REMOVE POINTS ERROR ❌\n\n"+(e.message||e));
+  }
+}
+
+async function removeKill(teamIndex){
+  try{
+    const team=cfg.teams?.[teamIndex];
+    if(!team) throw new Error("Team nahi mila.");
+    const name=String(team.name||"").trim();
+    if(!name) throw new Error("Pehle team ka naam save karo.");
+    if(!confirm(`TEAM: ${name}\n\n1 kill remove karna hai?`)) return;
+    cfg.kill_adjustments=cfg.kill_adjustments||{};
+    const current=Number(cfg.kill_adjustments[name]||0);
+    cfg.kill_adjustments[name]=current-1;
+    await __queueSetState(cfg);
+    pingOverlay();
+    render();
+    $("status").textContent=`KILL REMOVED ✅ | ${name} | -1 kill`;
+  }catch(e){
+    alert("REMOVE KILL ERROR ❌\n\n"+(e.message||e));
+  }
+}
+
 async function manualEliminate(teamIndex){
   try{
     const team=cfg.teams[teamIndex];
@@ -621,6 +699,7 @@ async function resetFullPoints(){
     cfg.elimination_reset_at=now;
     cfg.elimination_reset_nonce=String(now);
     cfg.test_elimination=null;
+    cfg.kill_adjustments={};
     (cfg.teams||[]).forEach(t=>{
       t.eliminated=false;
       t.status="ALIVE";
@@ -629,6 +708,7 @@ async function resetFullPoints(){
       t.placement=0;
       t.placement_points=0;
       t.place_points=0;
+      t.manual_points=0;
     });
     await __queueSetState(cfg);
     pingOverlay();
