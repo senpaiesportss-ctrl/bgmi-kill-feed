@@ -864,14 +864,10 @@ async function rpc(
 }
 
 async function getState(){
-
-  return rpc(
-    "kf_get_state",
-    {
-      p_room_code:ROOM
-    }
-  );
-
+  const data = await rpc("kf_get_state", {p_room_code:ROOM});
+  if(data && typeof data === "object" && data.config && typeof data.config === "object") return data.config;
+  if(data && typeof data === "object" && data.state && typeof data.state === "object") return data.state;
+  return data || {teams:[]};
 }
 
 async function getEvents(){
@@ -1152,6 +1148,7 @@ function eventWeapon(e){
 
 function normalizeEvents(raw){
 
+  if(raw && typeof raw === "object" && raw.events && typeof raw.events === "object" && !Array.isArray(raw.events)) raw = raw.events;
   if(Array.isArray(raw))
     return raw;
 
@@ -1269,7 +1266,7 @@ function showKillFeed(
 ){
 
   // Admin controls this without changing the overlay design.
-  if(c?.broadcast?.kill_feed_enabled === false){
+  if(c?.show_kill_feed === false || c?.broadcast?.kill_feed_enabled === false){
     hideFeed();
     return;
   }
@@ -2007,6 +2004,7 @@ async function update(opts = {}){
     if(forceState || !cachedConfig || now - lastStateFetch > 4000){
       const state = await getState();
       cachedConfig = state?.config ?? state?.state ?? state;
+      if(cachedConfig && cachedConfig.config && typeof cachedConfig.config === "object") cachedConfig = cachedConfig.config;
       lastStateFetch = now;
     }
 
@@ -2045,7 +2043,7 @@ async function update(opts = {}){
 // Fast fallback polling for kill events. State is cached for 4 seconds.
 // Realtime/BroadcastChannel triggers an immediate refresh when available.
 update({forceState:true, forceEvents:true});
-setInterval(() => update({forceEvents:true}), 650);
+setInterval(() => update({forceEvents:true}), 900);
 
 // Instant live trigger for state/event changes.
 // The existing 1-second polling remains as fallback.
