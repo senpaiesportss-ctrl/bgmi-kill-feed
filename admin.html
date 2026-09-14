@@ -586,8 +586,16 @@ async function manualKill(teamIndex){
 // credit the kill to the button/team used, even if two IGN names overlap.
 const taggedWeapon="__KF_MANUAL__"+teamIndex+"__"+encodeURIComponent(weapon);
 
+    // INSTANT OBS UPDATE: send optimistic kill before the cloud RPC.
+    // This makes the points table + kill feed react immediately.
+    pingOverlay("event", {
+      killer,
+      victim,
+      weapon: taggedWeapon,
+      teamIndex,
+      config: cfg
+    });
     await addEvent(killer,victim,taggedWeapon);
-    pingOverlay();
     $("status").textContent=`KILL ADDED ✅ | TEAM ${teamIndex+1} | ${killer} → ${victim} | Points updating live`;
   }catch(e){
     alert("MANUAL KILL ERROR ❌\n\n"+(e.message||e));
