@@ -470,14 +470,24 @@ html,body{
   text-shadow:0 0 8px rgba(255,104,120,.22);
 }
 
-.prow.eliminated .team:after{
-  content:"ELIMINATED";
-  margin-left:6px;
-  flex:none;
+.prow.eliminated .team:after{ content:none; }
+
+.elimTag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-left:4px;
+  padding:2px 5px;
+  border:1px solid rgba(255,104,120,.45);
+  border-radius:3px;
   color:#ff6878;
+  background:rgba(255,70,90,.10);
   font-size:7px;
+  line-height:1;
   font-weight:1000;
   letter-spacing:.7px;
+  white-space:nowrap;
+  flex:none;
 }
 
 .team{
@@ -1666,7 +1676,8 @@ function renderTable(
 
   const eliminatedTeams = new Set(
     getEliminatedTeams(c, raw)
-      .map(t => teamName(t))
+      .map(t => eliminationNorm(teamName(t)))
+      .filter(Boolean)
   );
 
   const rows =
@@ -1726,7 +1737,7 @@ function renderTable(
 
           return `
 
-          <div class="prow ${eliminatedTeams.has(r.name) ? "eliminated" : ""}">
+          <div class="prow ${eliminatedTeams.has(eliminationNorm(r.name)) ? "eliminated" : ""}">
 
             <div class="rank">
               ${index + 1}
@@ -1759,7 +1770,7 @@ function renderTable(
               </b>
 
               ${
-                eliminatedTeams.has(r.name)
+                eliminatedTeams.has(eliminationNorm(r.name))
                 ?
                 `<span class="elimTag">ELIMINATED</span>`
                 :
@@ -1954,7 +1965,10 @@ function checkEliminations(c, raw){
           logo:""
         };
 
-      eliminatedShown.add(testKey);
+        eliminatedShown.add(testKey);
+      // Mark the same key as already shown so the realtime/state reconciliation
+      // cannot fire the elimination banner a second time.
+      eliminatedShown.add("__REAL_ELIM__|" + teamName(testTeam));
       showElimination(testTeam);
     }
   }
@@ -2100,6 +2114,8 @@ try{
       {name:name, short:name, logo:String(d.logo||"")};
 
     if(d.logo && !team.logo) team.logo=d.logo;
+    const instantKey = "__REAL_ELIM__|" + teamName(team);
+    eliminatedShown.add(instantKey);
     showElimination(team);
   };
 
@@ -2117,7 +2133,22 @@ try{
           renderTable(cachedConfig, cachedEvents);
         }
         if(m.type === "elimination") {
-          if(d?.config) cachedConfig=d.config;
+          if(d?.config && typeof d.config === "object") {
+            // Apply the elimination to the scoreboard FIRST, without waiting
+            // for postgres_changes/polling.
+            cachedConfig = d.config;
+            const target = eliminationNorm(d.team);
+            if(Array.isArray(cachedConfig.teams)) {
+              const et = cachedConfig.teams.find(t => eliminationNorm(teamName(t)) === target);
+              if(et) {
+                et.eliminated = true;
+                et.is_eliminated = true;
+                et.status = "ELIMINATED";
+                et.alive = 0;
+              }
+            }
+            renderTable(cachedConfig, cachedEvents);
+          }
           instantElimination(d);
           return;
         }
