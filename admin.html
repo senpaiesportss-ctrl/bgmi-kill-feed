@@ -296,11 +296,22 @@ let cfg={teams:[]};
 // different processes, so BroadcastChannel/localStorage alone is not enough.
 const __liveCfg = window.KF_CONFIG || {};
 let __liveBus = null;
+let __liveBusReady = Promise.resolve(false);
 try {
   if (typeof supabase !== "undefined" && __liveCfg.SUPABASE_URL && __liveCfg.SUPABASE_PUBLISHABLE_KEY) {
-    const __liveSB = supabase.createClient(__liveCfg.SUPABASE_URL, __liveCfg.SUPABASE_PUBLISHABLE_KEY);
-    __liveBus = __liveSB.channel("bgmi-kill-feed-admin-bus");
-    __liveBus.subscribe();
+    const __liveSB = supabase.createClient(__liveCfg.SUPABASE_URL, __liveCfg.SUPABASE_PUBLISHABLE_KEY, {
+      realtime: { params: { eventsPerSecond: 20 } }
+    });
+    __liveBus = __liveSB.channel("bgmi-kill-feed-admin-bus", { config: { broadcast: { ack: true } } });
+    __liveBusReady = new Promise(resolve => {
+      let settled=false;
+      const finish=v=>{ if(!settled){settled=true;resolve(v);} };
+      __liveBus.subscribe(status => {
+        if(status === "SUBSCRIBED") finish(true);
+        else if(status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") finish(false);
+      });
+      setTimeout(()=>finish(false), 1500);
+    });
   }
 } catch(e) { console.warn("Realtime bus unavailable", e); }
 
@@ -831,8 +842,22 @@ function pingOverlay(type="refresh", data=null){
     // IMPORTANT: Supabase Broadcast crosses browser/OBS processes and does
     // not wait for the kf_set_state RPC.
     if(__liveBus){
-      __liveBus.send({type:"broadcast", event:"admin_action", payload:msg})
-        .catch(()=>{});
+      // Never let the Admin button wait on Realtime. Broadcast is a best-effort
+      // instant signal; cloud persistence is handled separately.
+      const sendNow = async () => {
+        try {
+          const ready = await Promise.race([
+            __liveBusReady,
+            new Promise(r=>setTimeout(()=>r(false), 900))
+          ]);
+          if(!ready) return;
+          await Promise.race([
+            __liveBus.send({type:"broadcast", event:"admin_action", payload:msg}),
+            new Promise(r=>setTimeout(r, 900))
+          ]);
+        } catch(_){ }
+      };
+      sendNow();
     }
   }catch(e){}
 }
