@@ -541,9 +541,8 @@ async function savePlacement(teamIndex){
     // Do NOT overwrite team.total here. Kill totals remain separate.
 
     if(btn){btn.disabled=true;btn.textContent="SAVING…";}
+    pingOverlay("state", {config: cfg});
     await __queueSetState(cfg);
-
-    pingOverlay();
     const ptsEl=$("placePts"+teamIndex);
     if(ptsEl) ptsEl.value=newPlacement+" POINTS";
     $("status").textContent=`PLACEMENT SAVED ✅ | ${team.name} | +${pts} pts | PLACEMENT TOTAL = ${newPlacement} pts`;
@@ -609,9 +608,9 @@ async function saveManualPoints(teamIndex){
     const input=$("manualPts"+teamIndex);
     const value=Math.max(0,Number(input?.value||0));
     team.manual_points=value;
-    await __queueSetState(cfg);
     pingOverlay("state", {config: cfg});
     render();
+    await __queueSetState(cfg);
     $("status").textContent=`MANUAL POINTS SAVED ✅ | ${team.name} | ${value} pts`;
   }catch(e){
     alert("MANUAL POINTS ERROR ❌\n\n"+(e.message||e));
@@ -627,9 +626,9 @@ async function removeManualPoints(teamIndex){
     const requested=Math.max(0,Number(input?.value||0));
     const removeBy=requested>0 ? requested : 1;
     team.manual_points=Math.max(0,current-removeBy);
-    await __queueSetState(cfg);
     pingOverlay("state", {config: cfg});
     render();
+    await __queueSetState(cfg);
     $("status").textContent=`MANUAL POINTS REMOVED ✅ | ${team.name} | -${Math.min(removeBy,current)} pts`;
   }catch(e){
     alert("REMOVE POINTS ERROR ❌\n\n"+(e.message||e));
@@ -646,9 +645,9 @@ async function removeKill(teamIndex){
     cfg.kill_adjustments=cfg.kill_adjustments||{};
     const current=Number(cfg.kill_adjustments[name]||0);
     cfg.kill_adjustments[name]=current-1;
-    await __queueSetState(cfg);
     pingOverlay("state", {config: cfg});
     render();
+    await __queueSetState(cfg);
     $("status").textContent=`KILL REMOVED ✅ | ${name} | -1 kill`;
   }catch(e){
     alert("REMOVE KILL ERROR ❌\n\n"+(e.message||e));
@@ -705,9 +704,9 @@ async function resetCurrentEliminations(){
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
     });
-    await __queueSetState(cfg);
     pingOverlay("state", {config: cfg});
     render();
+    await __queueSetState(cfg);
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
     alert("CURRENT ELIMINATIONS RESET ✅\n\nSirf eliminated status hata hai.\nKills + placement points + total same rahenge.");
   }catch(e){
@@ -742,9 +741,9 @@ async function resetFullPoints(){
       t.place_points=0;
       t.manual_points=0;
     });
-    await __queueSetState(cfg);
     pingOverlay("state", {config: cfg});
     render();
+    await __queueSetState(cfg);
     $("status").textContent="FULL POINTS RESET DONE ✅ | Kills + Placement = 0";
     alert("FULL POINTS RESET DONE ✅\n\nKills = 0\nPlacement = 0\nTotal = 0\n\nRoster safe hai.");
   }catch(e){
@@ -841,33 +840,31 @@ function pingOverlay(type="refresh", data=null){
   try{
     const msg={type, t:Date.now(), data:data||null};
     // Same-machine fast paths.
-    localStorage.setItem("kf_live_ping", JSON.stringify(msg));
+    try{ localStorage.setItem("kf_live_ping", JSON.stringify(msg)); }catch(_){ }
     if("BroadcastChannel" in window){
-      const bc=new BroadcastChannel("bgmi-kill-feed-live");
-      bc.postMessage(msg);
-      setTimeout(()=>bc.close(),50);
+      try{
+        const bc=new BroadcastChannel("bgmi-kill-feed-live");
+        bc.postMessage(msg);
+        setTimeout(()=>bc.close(),50);
+      }catch(_){ }
     }
-    // IMPORTANT: Supabase Broadcast crosses browser/OBS processes and does
-    // not wait for the kf_set_state RPC.
+    // CROSS-PROCESS: keep retrying for up to 2 seconds, but NEVER await it.
+    // OBS receives the action as soon as the Supabase realtime channel is ready.
     if(__liveBus){
-      // Never let the Admin button wait on Realtime. Broadcast is a best-effort
-      // instant signal; cloud persistence is handled separately.
-      const sendNow = async () => {
-        try {
-          const ready = await Promise.race([
-            __liveBusReady,
-            new Promise(r=>setTimeout(()=>r(false), 900))
-          ]);
-          if(!ready) return;
-          await Promise.race([
-            __liveBus.send({type:"broadcast", event:"admin_action", payload:msg}),
-            new Promise(r=>setTimeout(r, 900))
-          ]);
-        } catch(_){ }
+      const started=performance.now();
+      const send=async()=>{
+        try{
+          if(performance.now()-started>2000) return;
+          await __liveBus.send({type:"broadcast",event:"admin_action",payload:msg});
+          return;
+        }catch(_){ }
+        setTimeout(send,100);
       };
-      sendNow();
+      // If already subscribed this fires immediately; otherwise retries while
+      // the channel finishes subscribing. Button/UI is never blocked.
+      send();
     }
-  }catch(e){}
+  }catch(_){ }
 }
 
 /* ---------- TEST HELPERS ---------- */
@@ -897,13 +894,12 @@ async function testKill(){
       throw new Error("Killer/Victim player roster me nahi mila.");
     }
 
-    await __queueSetState(cfg);
-    await addEvent(
-      killerTeam.players[0],
-      victimTeam.players[0],
-      "GUN"
-    );
-    pingOverlay();
+    const killer=killerTeam.players[0];
+    const victim=victimTeam.players[0];
+    pingOverlay("event", {killer,victim,weapon:"GUN",teamIndex:killerTeam.index,config:cfg});
+    // Cloud reconciliation happens after the instant overlay signal.
+    __queueSetState(cfg).catch(()=>{});
+    await addEvent(killer,victim,"GUN");
 
     $("status").textContent=
       "PREVIEW KILL SENT ✅ | "+
