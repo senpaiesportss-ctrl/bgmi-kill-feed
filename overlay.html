@@ -2034,14 +2034,14 @@ async function update(opts = {}){
 // Lightweight fallback polling. Realtime triggers immediate refreshes; polling is only a safety net.
 // Realtime/BroadcastChannel triggers an immediate refresh when available.
 update({forceState:true, forceEvents:true});
-setInterval(() => update({forceEvents:true}), 1000);
+setInterval(() => update({forceEvents:true}), 500);
 
 // Instant live trigger for state/event changes.
 // Polling is intentionally slower to avoid hammering Supabase and OBS browser rendering.
 try{
   const scheduleRealtimeRefresh = (forceState=false) => {
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => update({forceState, forceEvents:true}), 40);
+    refreshTimer = setTimeout(() => update({forceState, forceEvents:true}), 20);
   };
 
   const liveChannel = sb.channel("bgmi-kill-feed-live-overlay");
@@ -2105,7 +2105,9 @@ try{
 
   // Supabase Broadcast is the reliable cross-process path (OBS + Admin).
   try{
-    sb.channel("bgmi-kill-feed-admin-bus")
+    // Dedicated low-latency admin bus. Subscribe immediately; it is the
+    // primary path for Admin -> OBS actions and does not wait for state RPCs.
+    sb.channel("bgmi-kill-feed-admin-bus", { config: { broadcast: { ack: true } } })
       .on("broadcast", {event:"admin_action"}, msg => {
         const m=msg?.payload||{};
         const d=m?.data||{};
