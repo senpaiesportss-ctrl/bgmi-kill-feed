@@ -2003,6 +2003,8 @@ let cachedEvents = [];
 let lastStateFetch = 0;
 let refreshTimer = null;
 let lastInstantConfigAt = 0;
+let lastInstantResetAt = 0;
+let lastInstantResetNonce = "";
 let lastEliminationDisplayKey = "";
 let lastEliminationDisplayAt = 0;
 
@@ -2020,8 +2022,12 @@ async function update(opts = {}){
     // do not wait for a second RPC call every time. Realtime still refreshes it.
     if(forceState || !cachedConfig || now - lastStateFetch > 4000){
       const state = await getState();
-      cachedConfig = state?.config ?? state?.state ?? state;
-      if(cachedConfig && cachedConfig.config && typeof cachedConfig.config === "object") cachedConfig = cachedConfig.config;
+      const fetchedConfig = state?.config ?? state?.state ?? state;
+      const nextConfig = (fetchedConfig && fetchedConfig.config && typeof fetchedConfig.config === "object") ? fetchedConfig.config : fetchedConfig;
+      // Do not let a delayed/stale RPC response undo an instant Admin reset/elimination.
+      if(Date.now() - lastInstantConfigAt >= 8000 && Date.now() - lastInstantResetAt >= 8000){
+        cachedConfig = nextConfig;
+      }
       lastStateFetch = now;
     }
 
@@ -2080,7 +2086,7 @@ try{
       // immediately from realtime instead of waiting for the next poll.
       const next = payload?.new?.config;
       if(next && typeof next === "object"){
-        if(Date.now() - lastInstantConfigAt >= 3000){
+        if(Date.now() - lastInstantConfigAt >= 8000 && Date.now() - lastInstantResetAt >= 8000){
           cachedConfig = next;
           lastStateFetch = performance.now();
         }
@@ -2121,6 +2127,28 @@ try{
 }
 
 try{
+  function mergeEliminationConfig(next){
+    if(!next || typeof next !== "object") return;
+    if(!cachedConfig || typeof cachedConfig !== "object"){
+      cachedConfig = next;
+      return;
+    }
+    // Merge team flags instead of replacing the whole roster. Rapid Admin
+    // elimination clicks can arrive out of order; an older snapshot must not
+    // erase an elimination that was already received a moment earlier.
+    const oldTeams = Array.isArray(cachedConfig.teams) ? cachedConfig.teams : [];
+    const newTeams = Array.isArray(next.teams) ? next.teams : [];
+    const oldByName = new Map(oldTeams.map(t => [eliminationNorm(teamName(t)), t]));
+    const mergedTeams = newTeams.map(nt => {
+      const ot = oldByName.get(eliminationNorm(teamName(nt)));
+      if(ot && (ot.eliminated===true || ot.is_eliminated===true || String(ot.status||"").toLowerCase()==="eliminated" || Number(ot.alive)===0)){
+        return {...nt, eliminated:true, is_eliminated:true, status:"ELIMINATED", alive:0};
+      }
+      return nt;
+    });
+    cachedConfig = {...cachedConfig, ...next, teams:mergedTeams};
+  }
+
   const instantElimination = (data) => {
     const d=data||{};
     const name=String(d.team||"").trim();
@@ -2168,6 +2196,9 @@ try{
         if(m.type === "reset_elimination") {
           // Clear elimination UI/state immediately; do not wait for Postgres/polling.
           if(d?.config && typeof d.config === "object") cachedConfig = d.config;
+          lastInstantResetAt = Date.now();
+          lastInstantResetNonce = String(d?.nonce || d?.config?.elimination_reset_nonce || Date.now());
+          lastInstantConfigAt = Date.now();
           eliminatedShown.clear();
           lastEliminationDisplayKey = "";
           lastEliminationDisplayAt = 0;
@@ -2186,8 +2217,9 @@ try{
         if(m.type === "elimination") {
           if(d?.config && typeof d.config === "object") {
             // Apply the elimination to the scoreboard FIRST, without waiting
-            // for postgres_changes/polling.
-            cachedConfig = d.config;
+            // for postgres_changes/polling. Merge snapshots so 2-4 rapid
+            // eliminations cannot overwrite one another.
+            mergeEliminationConfig(d.config);
             lastInstantConfigAt = Date.now();
             const target = eliminationNorm(d.team);
             if(Array.isArray(cachedConfig.teams)) {
