@@ -704,7 +704,8 @@ async function resetCurrentEliminations(){
       t.status="ALIVE";
       t.alive=(t.players||[]).length;
     });
-    pingOverlay("state", {config: cfg});
+    // Instant reset signal — overlay clears immediately, cloud save follows.
+    pingOverlay("reset_elimination", {config: cfg, nonce: String(now)});
     render();
     await __queueSetState(cfg);
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
