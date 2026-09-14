@@ -292,6 +292,18 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
 <script>
 let cfg={teams:[]};
 
+// CROSS-PROCESS REALTIME BUS: OBS Browser Source and Admin may run in
+// different processes, so BroadcastChannel/localStorage alone is not enough.
+const __liveCfg = window.KF_CONFIG || {};
+let __liveBus = null;
+try {
+  if (typeof supabase !== "undefined" && __liveCfg.SUPABASE_URL && __liveCfg.SUPABASE_PUBLISHABLE_KEY) {
+    const __liveSB = supabase.createClient(__liveCfg.SUPABASE_URL, __liveCfg.SUPABASE_PUBLISHABLE_KEY);
+    __liveBus = __liveSB.channel("bgmi-kill-feed-admin-bus");
+    __liveBus.subscribe();
+  }
+} catch(e) { console.warn("Realtime bus unavailable", e); }
+
 // ULTRA-FAST cloud writer:
 // one serialized write at a time, short retry backoff, no long client-side waits.
 const __cloudSetState = (typeof window.setState === "function") ? window.setState :
@@ -579,7 +591,7 @@ async function saveManualPoints(teamIndex){
     const value=Math.max(0,Number(input?.value||0));
     team.manual_points=value;
     await __queueSetState(cfg);
-    pingOverlay();
+    pingOverlay("state", {config: cfg});
     render();
     $("status").textContent=`MANUAL POINTS SAVED ✅ | ${team.name} | ${value} pts`;
   }catch(e){
@@ -597,7 +609,7 @@ async function removeManualPoints(teamIndex){
     const removeBy=requested>0 ? requested : 1;
     team.manual_points=Math.max(0,current-removeBy);
     await __queueSetState(cfg);
-    pingOverlay();
+    pingOverlay("state", {config: cfg});
     render();
     $("status").textContent=`MANUAL POINTS REMOVED ✅ | ${team.name} | -${Math.min(removeBy,current)} pts`;
   }catch(e){
@@ -616,7 +628,7 @@ async function removeKill(teamIndex){
     const current=Number(cfg.kill_adjustments[name]||0);
     cfg.kill_adjustments[name]=current-1;
     await __queueSetState(cfg);
-    pingOverlay();
+    pingOverlay("state", {config: cfg});
     render();
     $("status").textContent=`KILL REMOVED ✅ | ${name} | -1 kill`;
   }catch(e){
@@ -648,7 +660,8 @@ async function manualEliminate(teamIndex){
       team:teamName,
       logo:team.logo||"",
       nonce:Date.now(),
-      expires_at:Date.now()+5000
+      expires_at:Date.now()+5000,
+      config: cfg
     });
 
     // Cloud persistence happens after the instant stream signal.
@@ -674,7 +687,7 @@ async function resetCurrentEliminations(){
       t.alive=(t.players||[]).length;
     });
     await __queueSetState(cfg);
-    pingOverlay();
+    pingOverlay("state", {config: cfg});
     render();
     $("status").textContent="CURRENT ELIMINATIONS RESET ✅ | Points/Kills unchanged";
     alert("CURRENT ELIMINATIONS RESET ✅\n\nSirf eliminated status hata hai.\nKills + placement points + total same rahenge.");
@@ -711,7 +724,7 @@ async function resetFullPoints(){
       t.manual_points=0;
     });
     await __queueSetState(cfg);
-    pingOverlay();
+    pingOverlay("state", {config: cfg});
     render();
     $("status").textContent="FULL POINTS RESET DONE ✅ | Kills + Placement = 0";
     alert("FULL POINTS RESET DONE ✅\n\nKills = 0\nPlacement = 0\nTotal = 0\n\nRoster safe hai.");
@@ -807,13 +820,19 @@ function logo(i){
 /* Wake any open /overlay tab instantly after an Admin action. */
 function pingOverlay(type="refresh", data=null){
   try{
-    const msg={type, t:Date.now(), data};
-    // Broadcast immediately. Do NOT wait for Supabase RPC.
+    const msg={type, t:Date.now(), data:data||null};
+    // Same-machine fast paths.
     localStorage.setItem("kf_live_ping", JSON.stringify(msg));
     if("BroadcastChannel" in window){
       const bc=new BroadcastChannel("bgmi-kill-feed-live");
       bc.postMessage(msg);
       setTimeout(()=>bc.close(),50);
+    }
+    // IMPORTANT: Supabase Broadcast crosses browser/OBS processes and does
+    // not wait for the kf_set_state RPC.
+    if(__liveBus){
+      __liveBus.send({type:"broadcast", event:"admin_action", payload:msg})
+        .catch(()=>{});
     }
   }catch(e){}
 }
@@ -899,7 +918,8 @@ async function testElimination(){
       team:victimTeam.team.name,
       logo:victimTeam.team.logo||"",
       nonce:cfg.test_elimination.nonce,
-      expires_at:Date.now()+5000
+      expires_at:Date.now()+5000,
+      config: cfg
     });
 
     await __queueSetState(cfg);
@@ -915,7 +935,7 @@ async function testElimination(){
     // Keep the flag fresh for the overlay while the four test events arrive.
     cfg.test_elimination.expires_at=Date.now()+60000;
     await __queueSetState(cfg);
-    pingOverlay();
+    pingOverlay("state", {config: cfg});
 
     $("status").textContent=
       "TEST ELIMINATION SENT ✅ | "+
