@@ -2103,6 +2103,47 @@ try{
     showElimination(team);
   };
 
+  // Supabase Broadcast is the reliable cross-process path (OBS + Admin).
+  try{
+    sb.channel("bgmi-kill-feed-admin-bus")
+      .on("broadcast", {event:"admin_action"}, msg => {
+        const m=msg?.payload||{};
+        const d=m?.data||{};
+        if(d?.config && typeof d.config === "object"){
+          cachedConfig = d.config;
+          lastStateFetch = performance.now();
+          renderTable(cachedConfig, cachedEvents);
+        }
+        if(m.type === "elimination") {
+          if(d?.config) cachedConfig=d.config;
+          instantElimination(d);
+          return;
+        }
+        if(m.type === "event" && d?.killer && d?.victim){
+          // Optimistic kill-feed display. The INSERT realtime event will
+          // reconcile/deduplicate the same kill later.
+          const optimistic = {
+            id: "admin_"+String(m.t||Date.now()),
+            killer: d.killer, victim: d.victim, weapon: d.weapon || "GUN",
+            created_at: new Date().toISOString()
+          };
+          cachedEvents = uniqueEvents([optimistic, ...cachedEvents]);
+          renderTable(cachedConfig || {}, cachedEvents);
+          showKillFeed(cachedConfig || {}, cachedEvents);
+          checkEliminations(cachedConfig || {}, cachedEvents);
+          return;
+        }
+        // Placement/reset/broadcast/etc: state is already in the message.
+        if(d?.config) {
+          renderTable(cachedConfig || {}, cachedEvents);
+          checkEliminations(cachedConfig || {}, cachedEvents);
+        } else {
+          update({forceState:true, forceEvents:true});
+        }
+      })
+      .subscribe();
+  }catch(e){ console.warn("Supabase broadcast unavailable:", e); }
+
   if("BroadcastChannel" in window){
     const liveChannel = new BroadcastChannel("bgmi-kill-feed-live");
     liveChannel.onmessage = msg => {
