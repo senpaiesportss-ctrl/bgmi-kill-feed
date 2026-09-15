@@ -214,7 +214,7 @@ input:focus{border-color:rgba(245,197,66,.7);box-shadow:0 0 0 3px rgba(245,197,6
       <div><div class="num">Group</div><input id="bGroup" value="GROUP A × B"></div>
       <div><div class="num">Day</div><input id="bDay" value="DAY 1"></div>
       <div><div class="num">Map</div><input id="bMap" value="ERANGEL"></div>
-      <div><div class="num">Remaining</div><input id="bRemaining" type="number" value="16"></div>
+      <div><div class="num">Remaining</div><input id="bRemaining" type="number" value="18"></div>
     </div>
 
     <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
@@ -407,7 +407,7 @@ function load(){
   $("bGroup").value=cfg.broadcast?.group||"GROUP A × B";
   $("bDay").value=cfg.broadcast?.day||"DAY 1";
   $("bMap").value=cfg.broadcast?.map||"ERANGEL";
-  $("bRemaining").value=cfg.broadcast?.remaining??16;
+  $("bRemaining").value=cfg.broadcast?.remaining??18;
   $("bKillFeed").checked = cfg.broadcast?.kill_feed_enabled !== false;
 
   $("url").textContent=location.origin+"/overlay";
@@ -455,7 +455,7 @@ function render(){
         <div class="placementTitle">🏁 PLACEMENT POINTS — AUTO TOTAL</div>
         <div class="placementGrid">
           <select id="placeRank${i}" onchange="previewPlacement(${i})">
-            ${Array.from({length:16},(_,r)=>`<option value="${r+1}" ${Number(t.placement_rank||0)===(r+1)?"selected":""}>#${r+1} — ${placementPointsForRank(r+1)} pts</option>`).join("")}
+            ${Array.from({length:18},(_,r)=>`<option value="${r+1}" ${Number(t.placement_rank||0)===(r+1)?"selected":""}>#${r+1} — ${placementPointsForRank(r+1)} pts</option>`).join("")}
           </select>
           <input id="placePts${i}" value="${Number(t.placement_points||0)} POINTS" readonly>
         </div>
